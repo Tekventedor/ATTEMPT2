@@ -2,6 +2,8 @@
 
 A modern courses portal built with Next.js, Supabase, and Tailwind CSS.
 
+**Supabase Project:** Tekventedor's Second Attempt
+
 ## Features
 - **Supabase-powered backend** for authentication and data
 - **Single password authentication** for all users
@@ -13,15 +15,13 @@ A modern courses portal built with Next.js, Supabase, and Tailwind CSS.
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/Tekventedor/REPO_NAME.git
-cd REPO_NAME
+git clone https://github.com/Tekventedor/ATTEMPT2.git
+cd ATTEMPT2
 ```
 
 ### 2. Install dependencies
 ```bash
 npm install
-# or
-yarn install
 ```
 
 ### 3. Set up environment variables
