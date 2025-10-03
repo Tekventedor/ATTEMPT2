@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { supabase } from "../utils/supabaseClient";
 
+const SHARED_PASSWORD = process.env.NEXT_PUBLIC_SINGLE_AUTH_PASSWORD;
+
 export default function Home() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -13,12 +15,13 @@ export default function Home() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    if (password !== process.env.NEXT_PUBLIC_SINGLE_AUTH_PASSWORD) {
+
+    if (!SHARED_PASSWORD || password !== SHARED_PASSWORD) {
       setError("Incorrect password");
       setLoading(false);
       return;
     }
-    // Use Supabase signInWithPassword (email can be username@domain.com for demo)
+
     const { error } = await supabase.auth.signInWithPassword({
       email: `${username}@example.com`,
       password,
