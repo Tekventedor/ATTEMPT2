@@ -6,7 +6,7 @@ import { supabase } from "../utils/supabaseClient";
 const SHARED_PASSWORD = process.env.NEXT_PUBLIC_SINGLE_AUTH_PASSWORD;
 
 export default function Home() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,7 +23,7 @@ export default function Home() {
     }
 
     const { error } = await supabase.auth.signInWithPassword({
-      email: `${username}@example.com`,
+      email,
       password,
     });
     if (error) setError(error.message);
@@ -34,10 +34,10 @@ export default function Home() {
     <div className="flex flex-col items-center justify-center min-h-screen">
       <form onSubmit={handleLogin} className="flex flex-col gap-4 w-full max-w-xs">
         <input
-          type="text"
-          placeholder="Username"
-          value={username}
-          onChange={e => setUsername(e.target.value)}
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
           className="border p-2 rounded"
           required
         />
