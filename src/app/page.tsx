@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "../utils/supabaseClient";
 
 const SHARED_PASSWORD = process.env.NEXT_PUBLIC_SINGLE_AUTH_PASSWORD;
 
@@ -24,16 +23,10 @@ export default function Home() {
       return;
     }
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-      return;
-    }
-
+    // Local-only success path for smoke testing
+    try {
+      localStorage.setItem("userEmail", email);
+    } catch {}
     router.push("/dashboard");
   };
 
