@@ -2,22 +2,27 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "../../utils/supabaseClient";
 
 export default function DashboardPage() {
   const router = useRouter();
   const [email, setEmail] = useState<string | null>(null);
 
   useEffect(() => {
-    try {
-      const e = localStorage.getItem("userEmail");
-      setEmail(e);
-    } catch {}
-  }, []);
+    const sync = async () => {
+      const { data } = await supabase.auth.getSession();
+      const session = data.session;
+      if (!session) {
+        router.replace("/");
+        return;
+      }
+      setEmail(session.user.email ?? null);
+    };
+    void sync();
+  }, [router]);
 
   const handleLogout = async () => {
-    try {
-      localStorage.removeItem("userEmail");
-    } catch {}
+    await supabase.auth.signOut();
     router.push("/");
   };
 
