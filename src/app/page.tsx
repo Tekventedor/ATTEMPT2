@@ -1,11 +1,13 @@
-'use client';
+"use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "../utils/supabaseClient";
 
 const SHARED_PASSWORD = process.env.NEXT_PUBLIC_SINGLE_AUTH_PASSWORD;
 
 export default function Home() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -26,8 +28,13 @@ export default function Home() {
       email,
       password,
     });
-    if (error) setError(error.message);
-    setLoading(false);
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+      return;
+    }
+
+    router.push("/dashboard");
   };
 
   return (
