@@ -63,7 +63,9 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {courses.map((c) => {
-              const src = c.image_name ? `/images/${c.image_name}` : "/vercel.svg";
+              const src = c.image_name
+                ? supabase.storage.from('course-images').getPublicUrl(c.image_name).data.publicUrl
+                : "/vercel.svg";
               return (
                 <Link key={`${c.table}-${c.id}`} href={`/course/${c.table}/${c.id}`} className="group rounded-lg overflow-hidden shadow border border-white/10 bg-white/5 hover:bg-white/10 transition">
                   <div className="relative w-full aspect-[16/9]">

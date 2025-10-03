@@ -35,7 +35,9 @@ export default function CourseDetail() {
 
   if (!course) return <div className="min-h-screen flex items-center justify-center text-white">Loading...</div>;
 
-  const src = course.image_name ? `/images/${course.image_name}` : "/vercel.svg";
+  const src = course.image_name
+    ? supabase.storage.from('course-images').getPublicUrl(course.image_name).data.publicUrl
+    : "/vercel.svg";
 
   return (
     <div className="min-h-screen p-6" style={{ backgroundImage: "url('/images/background.jpg')", backgroundSize: "cover", backgroundPosition: "center" }}>
