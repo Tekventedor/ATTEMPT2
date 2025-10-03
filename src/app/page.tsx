@@ -50,7 +50,7 @@ export default function Home() {
             className="bg-blue-600 text-white p-2 rounded disabled:opacity-50"
             disabled={loading}
           >
-            {loading ? "Signing in..." : "Sign In"}
+            {loading ? "Logging in..." : "Log in"}
           </button>
           {error && <div className="text-red-500 text-sm">{error}</div>}
         </form>
