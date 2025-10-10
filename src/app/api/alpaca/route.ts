@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
       
       case 'portfolio-history':
         // Get portfolio history from tradingbot account
-        const history = await alpacaRequest('/v2/account/portfolio/history?period=1M&timeframe=1Day');
+        const history = await alpacaRequest('/v2/account/portfolio/history?period=1M&timeframe=1D');
         return NextResponse.json({
           equity: history.equity,
           timestamp: history.timestamp,
