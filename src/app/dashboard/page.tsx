@@ -132,18 +132,18 @@ export default function TradingDashboard() {
         setAccount(accountData);
       }
 
-      // Load positions from course2 table
+      // Load positions from portfolio_positions table
       const { data: positionsData } = await supabase
-        .from('course2')
+        .from('portfolio_positions')
         .select('*');
       
       if (positionsData) {
         setPositions(positionsData);
       }
 
-      // Load trading logs from course1 table
+      // Load trading logs from trading_logs table
       const { data: logs } = await supabase
-        .from('course1')
+        .from('trading_logs')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(50);

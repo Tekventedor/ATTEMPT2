@@ -40,19 +40,19 @@ export async function POST() {
     const positions = await alpacaRequest('/v2/positions');
     console.log(`[SYNC] Fetched ${positions.length} positions from Alpaca`);
 
-    // 2. Clear old positions from course2
+    // 2. Clear old positions from portfolio_positions
     const { error: deletePositionsError } = await supabase
-      .from('course2')
+      .from('portfolio_positions')
       .delete()
       .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all rows
 
     if (deletePositionsError) {
       console.error('[SYNC] Error deleting old positions:', deletePositionsError);
     } else {
-      console.log('[SYNC] Cleared old positions from course2');
+      console.log('[SYNC] Cleared old positions from portfolio_positions');
     }
 
-    // 3. Insert real positions into course2
+    // 3. Insert real positions into portfolio_positions
     if (positions.length > 0) {
       const positionsToInsert = positions.map((pos: any) => ({
         title: `${pos.symbol} Position`,
@@ -68,33 +68,33 @@ export async function POST() {
       }));
 
       const { error: insertPositionsError } = await supabase
-        .from('course2')
+        .from('portfolio_positions')
         .insert(positionsToInsert);
 
       if (insertPositionsError) {
         console.error('[SYNC] Error inserting positions:', insertPositionsError);
         throw insertPositionsError;
       }
-      console.log(`[SYNC] Inserted ${positionsToInsert.length} positions into course2`);
+      console.log(`[SYNC] Inserted ${positionsToInsert.length} positions into portfolio_positions`);
     }
 
     // 4. Fetch real orders from Alpaca
     const orders = await alpacaRequest('/v2/orders?status=all&limit=50&direction=desc');
     console.log(`[SYNC] Fetched ${orders.length} orders from Alpaca`);
 
-    // 5. Clear old trading logs from course1
+    // 5. Clear old trading logs from trading_logs
     const { error: deleteLogsError } = await supabase
-      .from('course1')
+      .from('trading_logs')
       .delete()
       .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all rows
 
     if (deleteLogsError) {
       console.error('[SYNC] Error deleting old logs:', deleteLogsError);
     } else {
-      console.log('[SYNC] Cleared old logs from course1');
+      console.log('[SYNC] Cleared old logs from trading_logs');
     }
 
-    // 6. Insert real orders into course1 as trading logs
+    // 6. Insert real orders into trading_logs
     if (orders.length > 0) {
       const logsToInsert = orders.map((order: any) => ({
         title: `${order.symbol} ${order.side.toUpperCase()} Order`,
@@ -112,14 +112,14 @@ export async function POST() {
       }));
 
       const { error: insertLogsError } = await supabase
-        .from('course1')
+        .from('trading_logs')
         .insert(logsToInsert);
 
       if (insertLogsError) {
         console.error('[SYNC] Error inserting logs:', insertLogsError);
         throw insertLogsError;
       }
-      console.log(`[SYNC] Inserted ${logsToInsert.length} orders into course1`);
+      console.log(`[SYNC] Inserted ${logsToInsert.length} orders into trading_logs`);
     }
 
     // 7. Fetch account info
