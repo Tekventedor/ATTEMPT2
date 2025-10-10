@@ -3,6 +3,17 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../utils/supabaseClient";
+// API functions for Alpaca data
+async function fetchAlpacaData(endpoint: string) {
+  try {
+    const response = await fetch(`/api/alpaca?endpoint=${endpoint}`);
+    if (!response.ok) throw new Error('Failed to fetch data');
+    return await response.json();
+  } catch (error) {
+    console.error(`Error fetching ${endpoint}:`, error);
+    return null;
+  }
+}
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -84,84 +95,43 @@ export default function TradingDashboard() {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
+      
+      // Load account data from API
+      const accountData = await fetchAlpacaData('account');
+      if (accountData) {
+        setAccount(accountData);
+      }
 
-      // Get current user session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
-      const userId = session.user.id;
-
-      // Load positions from Supabase (populated by sync)
+      // Load positions from course2 table
       const { data: positionsData } = await supabase
-        .from('portfolio_positions')
-        .select('*')
-        .eq('user_id', userId);
-
+        .from('course2')
+        .select('*');
+      
       if (positionsData) {
-        setPositions(positionsData.map(pos => ({
-          id: pos.id,
-          title: pos.symbol || 'Unknown',
-          description: null,
-          symbol: pos.symbol,
-          quantity: pos.quantity,
-          average_price: pos.average_price,
-          current_price: pos.current_price,
-          total_value: pos.total_value,
-          unrealized_pnl: pos.unrealized_pnl,
-          realized_pnl: pos.realized_pnl,
-          tags: []
-        })));
+        setPositions(positionsData);
       }
 
-      // Load trading logs from Supabase (populated by sync)
-      const { data: logsData } = await supabase
-        .from('trading_logs')
+      // Load trading logs from course1 table
+      const { data: logs } = await supabase
+        .from('course1')
         .select('*')
-        .eq('user_id', userId)
-        .order('timestamp', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(50);
-
-      if (logsData) {
-        setTradingLogs(logsData.map(log => ({
-          id: log.id,
-          title: log.symbol || 'Trade',
-          description: log.reason || null,
-          action: log.action,
-          symbol: log.symbol,
-          quantity: log.quantity,
-          price: log.price,
-          total_value: log.total_value,
-          reason: log.reason,
-          confidence_score: log.confidence_score,
-          market_data: log.market_data || {},
-          tags: [],
-          timestamp: log.timestamp
+      
+      if (logs) {
+        setTradingLogs(logs.map(log => ({
+          ...log,
+          timestamp: log.created_at || log.timestamp || new Date().toISOString()
         })));
       }
 
-      // Load performance metrics from Supabase
-      const { data: metricsData } = await supabase
-        .from('performance_metrics')
-        .select('*')
-        .eq('user_id', userId)
-        .order('date', { ascending: false })
-        .limit(30);
-
-      if (metricsData && metricsData.length > 0) {
-        // Set account info from latest metrics
-        const latest = metricsData[0];
-        setAccount({
-          portfolio_value: latest.total_portfolio_value || 0,
-          cash: latest.total_portfolio_value || 0, // We'll update this from sync
-          buying_power: latest.total_portfolio_value || 0,
-          equity: latest.total_portfolio_value || 0,
-        });
-
-        // Format portfolio history
-        const formattedHistory = metricsData.reverse().map((metric, index) => ({
-          date: format(new Date(metric.date), 'MM/dd'),
-          value: metric.total_portfolio_value || 0,
-          pnl: metric.daily_pnl || 0
+      // Load portfolio history from API
+      const history = await fetchAlpacaData('portfolio-history');
+      if (history && history.equity) {
+        const formattedHistory = history.equity.map((value: number, index: number) => ({
+          date: format(new Date(Date.now() - (history.equity.length - index - 1) * 24 * 60 * 60 * 1000), 'MM/dd'),
+          value: value,
+          pnl: index > 0 ? value - history.equity[index - 1] : 0
         }));
         setPortfolioHistory(formattedHistory);
       }
@@ -175,29 +145,8 @@ export default function TradingDashboard() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    try {
-      // Get current user session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
-      // First, sync data from Alpaca to Supabase
-      const syncResponse = await fetch('/api/sync-alpaca', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: session.user.id })
-      });
-
-      if (!syncResponse.ok) {
-        console.error('Sync failed:', await syncResponse.text());
-      }
-
-      // Then reload data from Supabase
-      await loadDashboardData();
-    } catch (error) {
-      console.error('Error refreshing data:', error);
-    } finally {
-      setRefreshing(false);
-    }
+    await loadDashboardData();
+    setRefreshing(false);
   };
 
   const handleLogout = async () => {
@@ -217,11 +166,8 @@ export default function TradingDashboard() {
   }
 
   const totalUnrealizedPnL = positions.reduce((sum, pos) => sum + (pos.unrealized_pnl || 0), 0);
-
-  // Calculate win rate from actual profitable positions
-  const profitablePositions = positions.filter(pos => (pos.unrealized_pnl || 0) > 0).length;
-  const totalPositions = positions.length;
-  const winRate = totalPositions > 0 ? (profitablePositions / totalPositions) * 100 : 0;
+  const winRate = tradingLogs.filter(log => log.action === 'SELL' && (log.total_value || 0) > 0).length / 
+                 Math.max(tradingLogs.filter(log => log.action === 'SELL').length, 1) * 100;
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
