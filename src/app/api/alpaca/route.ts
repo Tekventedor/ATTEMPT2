@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       case 'positions':
         // Get current positions from tradingbot account
         const positions = await alpacaRequest('/v2/positions');
-        return NextResponse.json(positions.map((pos: any) => ({
+        return NextResponse.json(positions.map((pos: Record<string, unknown>) => ({
           symbol: pos.symbol,
           qty: parseFloat(pos.qty),
           side: pos.side,
