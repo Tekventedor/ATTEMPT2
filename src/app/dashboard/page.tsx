@@ -154,16 +154,16 @@ export default function TradingDashboard() {
       // Load portfolio history directly from Alpaca
       const history = await fetchAlpacaData('portfolio-history');
       if (history && history.equity && Array.isArray(history.equity) && history.timestamp && Array.isArray(history.timestamp)) {
-        // Filter out days with zero equity and format the data
+        // Filter out zero/negative equity and format hourly data
         const filteredHistory = history.equity
           .map((value: number, index: number) => ({
             timestamp: history.timestamp[index] * 1000, // Convert to milliseconds
-            value: value,
+            value: Math.abs(value), // Use absolute value to handle negative equity from Alpaca
           }))
-          .filter((item: { timestamp: number; value: number }) => item.value > 0); // Only show days with money
+          .filter((item: { timestamp: number; value: number }) => item.value > 1000); // Only show meaningful values
 
         const formattedHistory = filteredHistory.map((item: { timestamp: number; value: number }, index: number) => ({
-          date: format(new Date(item.timestamp), 'MM/dd'),
+          date: format(new Date(item.timestamp), 'MM/dd HH:mm'), // Show date and time
           value: item.value,
           pnl: index > 0 ? item.value - filteredHistory[index - 1].value : 0
         }));
@@ -309,6 +309,7 @@ export default function TradingDashboard() {
                 <XAxis dataKey="date" stroke="#9CA3AF" />
                 <YAxis
                   stroke="#9CA3AF"
+                  domain={[90000, 110000]}
                   tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
                 />
                 <Tooltip
