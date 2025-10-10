@@ -3,7 +3,17 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../utils/supabaseClient";
-import { getAccount, getPositions, getOrders, getPortfolioHistory } from "../../utils/alpacaClient";
+// API functions for Alpaca data
+async function fetchAlpacaData(endpoint: string) {
+  try {
+    const response = await fetch(`/api/alpaca?endpoint=${endpoint}`);
+    if (!response.ok) throw new Error('Failed to fetch data');
+    return await response.json();
+  } catch (error) {
+    console.error(`Error fetching ${endpoint}:`, error);
+    return null;
+  }
+}
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -84,15 +94,10 @@ export default function TradingDashboard() {
     try {
       setLoading(true);
       
-      // Load account data from Alpaca
-      const accountData = await getAccount();
+      // Load account data from API
+      const accountData = await fetchAlpacaData('account');
       if (accountData) {
-        setAccount({
-          portfolio_value: accountData.portfolio_value,
-          cash: accountData.cash,
-          buying_power: accountData.buying_power,
-          equity: accountData.equity,
-        });
+        setAccount(accountData);
       }
 
       // Load positions from course2 table
@@ -118,8 +123,8 @@ export default function TradingDashboard() {
         })));
       }
 
-      // Load portfolio history
-      const history = await getPortfolioHistory('1M');
+      // Load portfolio history from API
+      const history = await fetchAlpacaData('portfolio-history');
       if (history && history.equity) {
         const formattedHistory = history.equity.map((value: number, index: number) => ({
           date: format(new Date(Date.now() - (history.equity.length - index - 1) * 24 * 60 * 60 * 1000), 'MM/dd'),

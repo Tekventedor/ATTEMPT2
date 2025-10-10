@@ -1,14 +1,19 @@
-import { AlpacaClient } from '@alpacahq/alpaca-trade-api';
+// Alpaca client will be initialized only on server side
+let alpacaClient: any = null;
 
-// Initialize Alpaca client for paper trading
-export const alpacaClient = new AlpacaClient({
-  credentials: {
-    key: process.env.ALPACA_API_KEY || '',
-    secret: process.env.ALPACA_SECRET_KEY || '',
-    paper: true, // Use paper trading by default
-  },
-  rate_limit: true,
-});
+// Initialize Alpaca client only on server side
+if (typeof window === 'undefined') {
+  const { AlpacaClient } = require('@alpacahq/alpaca-trade-api');
+  
+  alpacaClient = new AlpacaClient({
+    credentials: {
+      key: process.env.ALPACA_API_KEY || '',
+      secret: process.env.ALPACA_SECRET_KEY || '',
+      paper: true, // Use paper trading by default
+    },
+    rate_limit: true,
+  });
+}
 
 // Types for trading data
 export interface Trade {
@@ -64,8 +69,12 @@ export interface Account {
   daytrade_count: number;
 }
 
-// API functions
+// API functions - only work on server side
 export async function getAccount(): Promise<Account | null> {
+  if (typeof window !== 'undefined' || !alpacaClient) {
+    return null; // Return null on client side
+  }
+  
   try {
     const account = await alpacaClient.getAccount();
     return account;
@@ -76,6 +85,10 @@ export async function getAccount(): Promise<Account | null> {
 }
 
 export async function getPositions(): Promise<Position[]> {
+  if (typeof window !== 'undefined' || !alpacaClient) {
+    return []; // Return empty array on client side
+  }
+  
   try {
     const positions = await alpacaClient.getPositions();
     return positions;
@@ -86,6 +99,10 @@ export async function getPositions(): Promise<Position[]> {
 }
 
 export async function getOrders(limit = 100): Promise<Trade[]> {
+  if (typeof window !== 'undefined' || !alpacaClient) {
+    return []; // Return empty array on client side
+  }
+  
   try {
     const orders = await alpacaClient.getOrders({
       status: 'all',
@@ -100,6 +117,10 @@ export async function getOrders(limit = 100): Promise<Trade[]> {
 }
 
 export async function getPortfolioHistory(period = '1M'): Promise<any> {
+  if (typeof window !== 'undefined' || !alpacaClient) {
+    return null; // Return null on client side
+  }
+  
   try {
     const history = await alpacaClient.getPortfolioHistory({
       period,
@@ -113,6 +134,10 @@ export async function getPortfolioHistory(period = '1M'): Promise<any> {
 }
 
 export async function getMarketData(symbols: string[]): Promise<any> {
+  if (typeof window !== 'undefined' || !alpacaClient) {
+    return null; // Return null on client side
+  }
+  
   try {
     const snapshot = await alpacaClient.getSnapshots(symbols);
     return snapshot;
