@@ -49,11 +49,13 @@ export async function GET(request: NextRequest) {
         // Get current positions from tradingbot account
         const positions = await alpacaRequest('/v2/positions');
         return NextResponse.json(positions.map((pos: Record<string, unknown>) => ({
+          asset_id: pos.asset_id as string,
           symbol: pos.symbol as string,
           qty: parseFloat(pos.qty as string),
           side: pos.side as string,
           market_value: parseFloat(pos.market_value as string),
           cost_basis: parseFloat(pos.cost_basis as string),
+          avg_entry_price: parseFloat(pos.avg_entry_price as string),
           unrealized_pl: parseFloat(pos.unrealized_pl as string),
           unrealized_plpc: parseFloat(pos.unrealized_plpc as string),
           current_price: parseFloat(pos.current_price as string),
@@ -77,29 +79,9 @@ export async function GET(request: NextRequest) {
     }
   } catch (error) {
     console.error('Alpaca API Error:', error);
-    
-    // Return mock data if API fails (for development)
-    const mockData = {
-      account: {
-        portfolio_value: 50000,
-        cash: 10000,
-        buying_power: 20000,
-        equity: 50000,
-        account_number: 'tradingbot',
-        status: 'ACTIVE',
-      },
-      positions: [],
-      'portfolio-history': {
-        equity: [48000, 48500, 49000, 49500, 50000],
-        timestamp: [],
-      },
-      orders: [],
-    };
-    
-    if (endpoint && mockData[endpoint as keyof typeof mockData]) {
-      return NextResponse.json(mockData[endpoint as keyof typeof mockData]);
-    }
-    
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({
+      error: 'Failed to fetch data from Alpaca API',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
