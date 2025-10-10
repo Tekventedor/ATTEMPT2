@@ -153,11 +153,19 @@ export default function TradingDashboard() {
 
       // Load portfolio history directly from Alpaca
       const history = await fetchAlpacaData('portfolio-history');
-      if (history && history.equity && Array.isArray(history.equity)) {
-        const formattedHistory = history.equity.map((value: number, index: number) => ({
-          date: format(new Date(Date.now() - (history.equity.length - index - 1) * 24 * 60 * 60 * 1000), 'MM/dd'),
-          value: value,
-          pnl: index > 0 ? value - history.equity[index - 1] : 0
+      if (history && history.equity && Array.isArray(history.equity) && history.timestamp && Array.isArray(history.timestamp)) {
+        // Filter out days with zero equity and format the data
+        const filteredHistory = history.equity
+          .map((value: number, index: number) => ({
+            timestamp: history.timestamp[index] * 1000, // Convert to milliseconds
+            value: value,
+          }))
+          .filter((item: { timestamp: number; value: number }) => item.value > 0); // Only show days with money
+
+        const formattedHistory = filteredHistory.map((item: { timestamp: number; value: number }, index: number) => ({
+          date: format(new Date(item.timestamp), 'MM/dd'),
+          value: item.value,
+          pnl: index > 0 ? item.value - filteredHistory[index - 1].value : 0
         }));
         setPortfolioHistory(formattedHistory);
       }
@@ -299,14 +307,18 @@ export default function TradingDashboard() {
               <LineChart data={portfolioHistory}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis dataKey="date" stroke="#9CA3AF" />
-                <YAxis stroke="#9CA3AF" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#1F2937', 
+                <YAxis
+                  stroke="#9CA3AF"
+                  tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#1F2937',
                     border: '1px solid #374151',
                     borderRadius: '8px',
                     color: '#F9FAFB'
-                  }} 
+                  }}
+                  formatter={(value: number) => [`$${value.toLocaleString()}`, 'Portfolio Value']}
                 />
                 <Line 
                   type="monotone" 
