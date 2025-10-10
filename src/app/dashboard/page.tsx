@@ -78,6 +78,21 @@ export default function TradingDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Sync Alpaca data to Supabase
+  const syncAlpacaData = async () => {
+    try {
+      const response = await fetch('/api/sync-alpaca', { method: 'POST' });
+      if (!response.ok) {
+        console.error('[SYNC] Failed to sync:', await response.text());
+      } else {
+        const result = await response.json();
+        console.log('[SYNC] Synced successfully:', result);
+      }
+    } catch (error) {
+      console.error('[SYNC] Error:', error);
+    }
+  };
+
   useEffect(() => {
     const init = async () => {
       const { data } = await supabase.auth.getSession();
@@ -87,7 +102,22 @@ export default function TradingDashboard() {
         return;
       }
       setEmail(session.user.email ?? null);
+
+      // First sync Alpaca data to Supabase
+      await syncAlpacaData();
+
+      // Then load the dashboard
       await loadDashboardData();
+
+      // Set up auto-refresh every 5 minutes (300000ms)
+      const intervalId = setInterval(async () => {
+        console.log('[AUTO-SYNC] Syncing data...');
+        await syncAlpacaData();
+        await loadDashboardData();
+      }, 300000); // 5 minutes
+
+      // Cleanup interval on unmount
+      return () => clearInterval(intervalId);
     };
     void init();
   }, [router]);
@@ -145,6 +175,7 @@ export default function TradingDashboard() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
+    await syncAlpacaData();
     await loadDashboardData();
     setRefreshing(false);
   };
