@@ -78,21 +78,6 @@ export default function TradingDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Sync Alpaca data to Supabase
-  const syncAlpacaData = async () => {
-    try {
-      const response = await fetch('/api/sync-alpaca', { method: 'POST' });
-      if (!response.ok) {
-        console.error('[SYNC] Failed to sync:', await response.text());
-      } else {
-        const result = await response.json();
-        console.log('[SYNC] Synced successfully:', result);
-      }
-    } catch (error) {
-      console.error('[SYNC] Error:', error);
-    }
-  };
-
   useEffect(() => {
     const init = async () => {
       const { data } = await supabase.auth.getSession();
@@ -103,16 +88,12 @@ export default function TradingDashboard() {
       }
       setEmail(session.user.email ?? null);
 
-      // First sync Alpaca data to Supabase
-      await syncAlpacaData();
-
-      // Then load the dashboard
+      // Load dashboard data directly from Alpaca
       await loadDashboardData();
 
       // Set up auto-refresh every 5 minutes (300000ms)
       const intervalId = setInterval(async () => {
-        console.log('[AUTO-SYNC] Syncing data...');
-        await syncAlpacaData();
+        console.log('[AUTO-REFRESH] Refreshing Alpaca data...');
         await loadDashboardData();
       }, 300000); // 5 minutes
 
@@ -125,39 +106,54 @@ export default function TradingDashboard() {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      
-      // Load account data from API
+
+      // Load account data directly from Alpaca
       const accountData = await fetchAlpacaData('account');
       if (accountData) {
         setAccount(accountData);
       }
 
-      // Load positions from portfolio_positions table
-      const { data: positionsData } = await supabase
-        .from('portfolio_positions')
-        .select('*');
-      
-      if (positionsData) {
-        setPositions(positionsData);
-      }
-
-      // Load trading logs from trading_logs table
-      const { data: logs } = await supabase
-        .from('trading_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
-      
-      if (logs) {
-        setTradingLogs(logs.map(log => ({
-          ...log,
-          timestamp: log.created_at || log.timestamp || new Date().toISOString()
+      // Load positions directly from Alpaca
+      const positionsData = await fetchAlpacaData('positions');
+      if (positionsData && Array.isArray(positionsData)) {
+        setPositions(positionsData.map((pos: any) => ({
+          id: pos.asset_id,
+          title: pos.symbol,
+          description: `${pos.qty} shares at $${parseFloat(pos.current_price).toFixed(2)}`,
+          symbol: pos.symbol,
+          quantity: parseFloat(pos.qty),
+          average_price: parseFloat(pos.avg_entry_price),
+          current_price: parseFloat(pos.current_price),
+          total_value: parseFloat(pos.market_value),
+          unrealized_pnl: parseFloat(pos.unrealized_pl),
+          realized_pnl: 0,
+          tags: []
         })));
       }
 
-      // Load portfolio history from API
+      // Load orders directly from Alpaca
+      const ordersData = await fetchAlpacaData('orders');
+      if (ordersData && Array.isArray(ordersData)) {
+        setTradingLogs(ordersData.slice(0, 50).map((order: any) => ({
+          id: order.id,
+          title: `${order.symbol} ${order.side.toUpperCase()}`,
+          description: `${order.type} order - ${order.status}`,
+          action: order.side.toUpperCase(),
+          symbol: order.symbol,
+          quantity: parseFloat(order.qty),
+          price: order.filled_avg_price ? parseFloat(order.filled_avg_price) : null,
+          total_value: order.filled_avg_price ? parseFloat(order.filled_avg_price) * parseFloat(order.qty) : null,
+          reason: `${order.type} ${order.side}`,
+          confidence_score: order.status === 'filled' ? 1.0 : 0.5,
+          market_data: {},
+          tags: [order.status],
+          timestamp: order.submitted_at
+        })));
+      }
+
+      // Load portfolio history directly from Alpaca
       const history = await fetchAlpacaData('portfolio-history');
-      if (history && history.equity) {
+      if (history && history.equity && Array.isArray(history.equity)) {
         const formattedHistory = history.equity.map((value: number, index: number) => ({
           date: format(new Date(Date.now() - (history.equity.length - index - 1) * 24 * 60 * 60 * 1000), 'MM/dd'),
           value: value,
@@ -175,7 +171,6 @@ export default function TradingDashboard() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await syncAlpacaData();
     await loadDashboardData();
     setRefreshing(false);
   };
