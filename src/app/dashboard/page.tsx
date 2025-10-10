@@ -117,15 +117,15 @@ export default function TradingDashboard() {
       const positionsData = await fetchAlpacaData('positions');
       if (positionsData && Array.isArray(positionsData)) {
         setPositions(positionsData.map((pos: Record<string, unknown>) => ({
-          id: pos.asset_id,
-          title: pos.symbol,
-          description: `${pos.qty} shares at $${parseFloat(pos.current_price).toFixed(2)}`,
-          symbol: pos.symbol,
-          quantity: parseFloat(pos.qty),
-          average_price: parseFloat(pos.avg_entry_price),
-          current_price: parseFloat(pos.current_price),
-          total_value: parseFloat(pos.market_value),
-          unrealized_pnl: parseFloat(pos.unrealized_pl),
+          id: pos.asset_id as string,
+          title: pos.symbol as string,
+          description: `${pos.qty} shares at $${parseFloat(pos.current_price as string).toFixed(2)}`,
+          symbol: pos.symbol as string,
+          quantity: parseFloat(pos.qty as string),
+          average_price: parseFloat(pos.avg_entry_price as string),
+          current_price: parseFloat(pos.current_price as string),
+          total_value: parseFloat(pos.market_value as string),
+          unrealized_pnl: parseFloat(pos.unrealized_pl as string),
           realized_pnl: 0,
           tags: []
         })));
@@ -135,19 +135,19 @@ export default function TradingDashboard() {
       const ordersData = await fetchAlpacaData('orders');
       if (ordersData && Array.isArray(ordersData)) {
         setTradingLogs(ordersData.slice(0, 50).map((order: Record<string, unknown>) => ({
-          id: order.id,
-          title: `${order.symbol} ${order.side.toUpperCase()}`,
-          description: `${order.type} order - ${order.status}`,
-          action: order.side.toUpperCase(),
-          symbol: order.symbol,
-          quantity: parseFloat(order.qty),
-          price: order.filled_avg_price ? parseFloat(order.filled_avg_price) : null,
-          total_value: order.filled_avg_price ? parseFloat(order.filled_avg_price) * parseFloat(order.qty) : null,
-          reason: `${order.type} ${order.side}`,
+          id: order.id as string,
+          title: `${order.symbol as string} ${(order.side as string).toUpperCase()}`,
+          description: `${order.type as string} order - ${order.status as string}`,
+          action: (order.side as string).toUpperCase(),
+          symbol: order.symbol as string,
+          quantity: parseFloat(order.qty as string),
+          price: order.filled_avg_price ? parseFloat(order.filled_avg_price as string) : null,
+          total_value: order.filled_avg_price ? parseFloat(order.filled_avg_price as string) * parseFloat(order.qty as string) : null,
+          reason: `${order.type as string} ${order.side as string}`,
           confidence_score: order.status === 'filled' ? 1.0 : 0.5,
           market_data: {},
-          tags: [order.status],
-          timestamp: order.submitted_at
+          tags: [order.status as string],
+          timestamp: order.submitted_at as string
         })));
       }
 

@@ -55,16 +55,16 @@ export async function POST() {
     // 3. Insert real positions into portfolio_positions
     if (positions.length > 0) {
       const positionsToInsert = positions.map((pos: Record<string, unknown>) => ({
-        title: `${pos.symbol} Position`,
-        description: `${pos.qty} shares at $${parseFloat(pos.current_price).toFixed(2)}`,
-        symbol: pos.symbol,
-        quantity: parseFloat(pos.qty),
-        average_price: parseFloat(pos.avg_entry_price),
-        current_price: parseFloat(pos.current_price),
-        total_value: parseFloat(pos.market_value),
-        unrealized_pnl: parseFloat(pos.unrealized_pl),
+        title: `${pos.symbol as string} Position`,
+        description: `${pos.qty} shares at $${parseFloat(pos.current_price as string).toFixed(2)}`,
+        symbol: pos.symbol as string,
+        quantity: parseFloat(pos.qty as string),
+        average_price: parseFloat(pos.avg_entry_price as string),
+        current_price: parseFloat(pos.current_price as string),
+        total_value: parseFloat(pos.market_value as string),
+        unrealized_pnl: parseFloat(pos.unrealized_pl as string),
         realized_pnl: 0,
-        tags: [pos.side, parseFloat(pos.unrealized_pl) >= 0 ? 'winning' : 'losing']
+        tags: [pos.side as string, parseFloat(pos.unrealized_pl as string) >= 0 ? 'winning' : 'losing']
       }));
 
       const { error: insertPositionsError } = await supabase
@@ -97,18 +97,18 @@ export async function POST() {
     // 6. Insert real orders into trading_logs
     if (orders.length > 0) {
       const logsToInsert = orders.map((order: Record<string, unknown>) => ({
-        title: `${order.symbol} ${order.side.toUpperCase()} Order`,
-        description: `${order.type} order - ${order.status}`,
-        action: order.side.toUpperCase(),
-        symbol: order.symbol,
-        quantity: parseFloat(order.qty),
-        price: order.filled_avg_price ? parseFloat(order.filled_avg_price) : null,
-        total_value: order.filled_avg_price ? parseFloat(order.filled_avg_price) * parseFloat(order.qty) : null,
-        reason: `${order.type} ${order.side} order - ${order.status}`,
+        title: `${order.symbol as string} ${(order.side as string).toUpperCase()} Order`,
+        description: `${order.type as string} order - ${order.status as string}`,
+        action: (order.side as string).toUpperCase(),
+        symbol: order.symbol as string,
+        quantity: parseFloat(order.qty as string),
+        price: order.filled_avg_price ? parseFloat(order.filled_avg_price as string) : null,
+        total_value: order.filled_avg_price ? parseFloat(order.filled_avg_price as string) * parseFloat(order.qty as string) : null,
+        reason: `${order.type as string} ${order.side as string} order - ${order.status as string}`,
         confidence_score: order.status === 'filled' ? 1.0 : 0.5,
         market_data: { order_type: order.type, time_in_force: order.time_in_force },
-        tags: [order.side, order.status],
-        timestamp: order.submitted_at,
+        tags: [order.side as string, order.status as string],
+        timestamp: order.submitted_at as string,
       }));
 
       const { error: insertLogsError } = await supabase
