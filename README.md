@@ -1,96 +1,177 @@
-# Trading AI Agent Performance
+# Trading AI Agent Performance Dashboard
 
-A comprehensive trading dashboard built with Next.js, Supabase, and Alpaca Paper Trading API to monitor your AI trading agent's performance.
-
-**Supabase Project:** Trading AI Agent Performance
+An automated trading dashboard that syncs real-time data from your Alpaca paper trading account to Supabase and displays portfolio performance, positions, and trading activity.
 
 ## Features
-- **Real-time Portfolio Monitoring** with live P&L tracking
-- **Alpaca Paper Trading Integration** for simulated trading data
-- **Comprehensive Analytics** including performance metrics and charts
-- **Trading Logs** with detailed AI decision tracking
-- **Position Management** with real-time market data
-- **Modern UI** with Tailwind CSS and responsive design
-- **Supabase-powered backend** for data persistence and authentication
 
-## Getting Started
+- 🔄 **Auto-sync** - Fetches real data from Alpaca every 5 minutes
+- 📊 **Portfolio Overview** - Real-time portfolio value, P&L, and win rate
+- 📈 **Performance Charts** - Portfolio history and position distribution
+- 💼 **Position Tracking** - Live positions with current prices and unrealized P&L
+- 📝 **Trading Logs** - Complete order history from your Alpaca account
+- 🔐 **Secure Authentication** - Supabase auth integration
 
-### 1. Clone the repository
-```bash
-git clone https://github.com/Tekventedor/TradingAIAgentPerformance.git
-cd TradingAIAgentPerformance
-```
+## Tech Stack
 
-### 2. Install dependencies
-```bash
-npm install
-```
+- **Frontend**: Next.js 15 (React 19, TypeScript, Tailwind CSS)
+- **Backend**: Supabase (PostgreSQL, Auth, RLS)
+- **Trading API**: Alpaca Paper Trading
+- **Charts**: Recharts
+- **Deployment**: Vercel
 
-### 3. Set up environment variables
-Copy `.env.local.example` to `.env.local` and fill in your credentials:
-```bash
-cp .env.local.example .env.local
-```
-
-Required environment variables:
-```
-NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-ALPACA_API_KEY=your-alpaca-api-key
-ALPACA_SECRET_KEY=your-alpaca-secret-key
-```
-
-### 4. Set up Supabase Database
-Run the migration to create the trading schema:
-```bash
-supabase db push
-```
-
-### 5. Run locally
-```bash
-npm run dev
-```
-
-## Environment Variables
-Create a `.env.local` file with the following variables:
+## Project Structure
 
 ```
-NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-ALPACA_API_KEY=your-alpaca-paper-trading-api-key
-ALPACA_SECRET_KEY=your-alpaca-paper-trading-secret-key
+TradingAIAgent/
+├── src/
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── alpaca/route.ts        # Alpaca API proxy
+│   │   │   └── sync-alpaca/route.ts   # Sync data from Alpaca to Supabase
+│   │   ├── dashboard/page.tsx         # Main dashboard UI
+│   │   └── page.tsx                   # Login page
+│   └── utils/
+│       └── supabaseClient.ts          # Supabase client
+├── supabase/
+│   ├── migrations/                    # Database migrations
+│   ├── INSERT_REAL_ALPACA_DATA.sql   # Manual data insert script
+│   └── FIX_RLS_AND_TEST.sql          # RLS configuration
+└── package.json
 ```
 
 ## Database Schema
 
-The application uses the following main tables:
-- `trading_logs` - Stores all AI trading decisions and actions
-- `portfolio_positions` - Current portfolio positions and P&L
-- `performance_metrics` - Daily performance tracking
-- `ai_agent_settings` - AI agent configuration
+### `trading_logs`
+Stores all order history from Alpaca:
+- `id`, `title`, `description`
+- `action` (BUY/SELL), `symbol`, `quantity`, `price`
+- `total_value`, `reason`, `confidence_score`
+- `market_data` (jsonb), `tags`, `timestamp`
 
-## Features Overview
+### `portfolio_positions`
+Stores current positions:
+- `id`, `title`, `description`
+- `symbol`, `quantity`, `average_price`, `current_price`
+- `total_value`, `unrealized_pnl`, `realized_pnl`
+- `tags`
 
-### Dashboard Components
-- **Portfolio Overview**: Real-time portfolio value, cash, and buying power
-- **Performance Charts**: Interactive charts showing portfolio performance over time
-- **Position Management**: Detailed view of current holdings with P&L
-- **Trading Logs**: Complete history of AI trading decisions with confidence scores
-- **Analytics**: Win rate, Sharpe ratio, and other performance metrics
+## Setup
 
-### AI Trading Integration
-- Connects to Alpaca Paper Trading API for simulated trading
-- Tracks AI decision-making process with confidence scores
-- Logs all trading actions with detailed reasoning
-- Real-time portfolio and position updates
+### 1. Environment Variables
 
-## Deployment (Vercel)
-1. Push your code to GitHub.
-2. Import the repo in [Vercel](https://vercel.com/).
-3. Set the environment variables in the Vercel dashboard.
-4. Deploy!
+Create `.env.local`:
+
+```bash
+# Alpaca API (Paper Trading)
+ALPACA_API_KEY=your_alpaca_api_key
+ALPACA_SECRET_KEY=your_alpaca_secret_key
+
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+### 2. Database Setup
+
+Run in Supabase SQL Editor:
+
+```sql
+-- Rename tables (if migrating from old schema)
+ALTER TABLE IF EXISTS public.course1 RENAME TO trading_logs;
+ALTER TABLE IF EXISTS public.course2 RENAME TO portfolio_positions;
+
+-- Disable RLS to allow API writes
+ALTER TABLE public.trading_logs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.portfolio_positions DISABLE ROW LEVEL SECURITY;
+```
+
+### 3. Install & Run
+
+```bash
+npm install
+npm run dev
+```
+
+Open http://localhost:3000
+
+## How Auto-Sync Works
+
+1. **On Dashboard Load**: Automatically fetches latest data from Alpaca
+2. **Every 5 Minutes**: Re-syncs data while dashboard is open
+3. **Manual Refresh**: Click refresh button for instant sync
+
+### Sync Flow:
+```
+Alpaca API → Sync Endpoint → Delete Old Rows → Insert Fresh Data → Dashboard Reloads
+```
+
+## API Endpoints
+
+### `POST /api/sync-alpaca`
+Syncs Alpaca data to Supabase tables.
+
+**Response:**
+```json
+{
+  "success": true,
+  "synced": {
+    "positions": 3,
+    "orders": 5,
+    "portfolio_value": 99332.50
+  }
+}
+```
+
+### `GET /api/alpaca?endpoint={endpoint}`
+Proxy for Alpaca API calls (used for account data and portfolio history).
+
+## Development
+
+```bash
+npm run dev      # Start dev server
+npm run build    # Build for production
+npm run start    # Start production server
+npm run lint     # Run ESLint
+```
+
+## Deployment
+
+### Vercel (Recommended)
+
+1. Push to GitHub
+2. Import project in Vercel
+3. Add environment variables
+4. Deploy
+
+Auto-deploys on every push to `main`.
+
+## Troubleshooting
+
+### Sync Fails with RLS Error
+Run the RLS disable SQL in Supabase SQL Editor.
+
+### Dashboard Shows No Data
+1. Check browser console for errors
+2. Verify Alpaca API keys are correct
+3. Click refresh button manually
+4. Check Supabase tables have data
+
+### TypeScript Errors
+```bash
+npm run build
+```
+
+## License
+
+MIT
+
+## Contributing
+
+Pull requests welcome! Please ensure:
+- TypeScript types are correct
+- Code is formatted with Prettier
+- Tests pass (if applicable)
 
 ---
 
-### License
-MIT
+**Note**: This project uses Alpaca's **paper trading** API. Never use live trading credentials.
