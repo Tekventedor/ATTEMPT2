@@ -1,8 +1,8 @@
-# AI Trading Dashboard
+# Trading AI Agent Performance
 
 A comprehensive trading dashboard built with Next.js, Supabase, and Alpaca Paper Trading API to monitor your AI trading agent's performance.
 
-**Supabase Project:** AI Trading Dashboard
+**Supabase Project:** Trading AI Agent Performance
 
 ## Features
 - **Real-time Portfolio Monitoring** with live P&L tracking
@@ -17,8 +17,8 @@ A comprehensive trading dashboard built with Next.js, Supabase, and Alpaca Paper
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/Tekventedor/ai-trading-dashboard.git
-cd ai-trading-dashboard
+git clone https://github.com/Tekventedor/TradingAIAgentPerformance.git
+cd TradingAIAgentPerformance
 ```
 
 ### 2. Install dependencies

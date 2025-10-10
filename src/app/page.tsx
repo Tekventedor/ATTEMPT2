@@ -36,7 +36,7 @@ export default function Home() {
               <Brain className="w-8 h-8 text-white" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">AI Trading Dashboard</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">Trading AI Agent Performance</h1>
           <p className="text-gray-300">Monitor your AI trading agent&apos;s performance</p>
         </div>
 
@@ -80,7 +80,7 @@ export default function Home() {
               className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-3 rounded-lg font-medium disabled:opacity-50 hover:from-blue-700 hover:to-purple-700 transition-all"
               disabled={loading}
             >
-              {loading ? "Logging in..." : "Access Dashboard"}
+              {loading ? "Logging in..." : "Access Performance Dashboard"}
             </button>
             {error && <div className="text-red-400 text-sm text-center">{error}</div>}
           </form>

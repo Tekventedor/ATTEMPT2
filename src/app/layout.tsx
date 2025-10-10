@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Trading Dashboard",
+  title: "Trading AI Agent Performance",
   description: "Monitor your AI trading agent's performance and portfolio",
 };
 

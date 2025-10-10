@@ -182,7 +182,7 @@ export default function TradingDashboard() {
                 <Brain className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-white">AI Trading Dashboard</h1>
+                <h1 className="text-2xl font-bold text-white">Trading AI Agent Performance</h1>
                 {email && <p className="text-sm text-gray-300">{email}</p>}
                 {account?.account_number && (
                   <p className="text-xs text-blue-300">Connected to: {account.account_number}</p>

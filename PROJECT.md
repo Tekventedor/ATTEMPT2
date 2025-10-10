@@ -1,4 +1,4 @@
-# AI Trading Dashboard
+# Trading AI Agent Performance
 
 A comprehensive Next.js application for monitoring AI trading agent performance using Alpaca Paper Trading API and Supabase.
 
