@@ -49,14 +49,14 @@ export async function GET(request: NextRequest) {
         // Get current positions from tradingbot account
         const positions = await alpacaRequest('/v2/positions');
         return NextResponse.json(positions.map((pos: Record<string, unknown>) => ({
-          symbol: pos.symbol,
-          qty: parseFloat(pos.qty),
-          side: pos.side,
-          market_value: parseFloat(pos.market_value),
-          cost_basis: parseFloat(pos.cost_basis),
-          unrealized_pl: parseFloat(pos.unrealized_pl),
-          unrealized_plpc: parseFloat(pos.unrealized_plpc),
-          current_price: parseFloat(pos.current_price),
+          symbol: pos.symbol as string,
+          qty: parseFloat(pos.qty as string),
+          side: pos.side as string,
+          market_value: parseFloat(pos.market_value as string),
+          cost_basis: parseFloat(pos.cost_basis as string),
+          unrealized_pl: parseFloat(pos.unrealized_pl as string),
+          unrealized_plpc: parseFloat(pos.unrealized_plpc as string),
+          current_price: parseFloat(pos.current_price as string),
         })));
       
       case 'portfolio-history':
