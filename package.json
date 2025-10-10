@@ -1,5 +1,5 @@
 {
-  "name": "next-app",
+  "name": "ai-trading-dashboard",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,10 +9,14 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@alpacahq/alpaca-trade-api": "^3.0.0",
     "@supabase/supabase-js": "^2.58.0",
     "next": "15.5.4",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "recharts": "^2.12.7",
+    "date-fns": "^3.6.0",
+    "lucide-react": "^0.400.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
