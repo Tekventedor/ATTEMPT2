@@ -116,7 +116,7 @@ export default function TradingDashboard() {
       // Load positions directly from Alpaca
       const positionsData = await fetchAlpacaData('positions');
       if (positionsData && Array.isArray(positionsData)) {
-        setPositions(positionsData.map((pos: any) => ({
+        setPositions(positionsData.map((pos: Record<string, unknown>) => ({
           id: pos.asset_id,
           title: pos.symbol,
           description: `${pos.qty} shares at $${parseFloat(pos.current_price).toFixed(2)}`,
@@ -134,7 +134,7 @@ export default function TradingDashboard() {
       // Load orders directly from Alpaca
       const ordersData = await fetchAlpacaData('orders');
       if (ordersData && Array.isArray(ordersData)) {
-        setTradingLogs(ordersData.slice(0, 50).map((order: any) => ({
+        setTradingLogs(ordersData.slice(0, 50).map((order: Record<string, unknown>) => ({
           id: order.id,
           title: `${order.symbol} ${order.side.toUpperCase()}`,
           description: `${order.type} order - ${order.status}`,

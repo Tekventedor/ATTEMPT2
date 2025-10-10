@@ -54,7 +54,7 @@ export async function POST() {
 
     // 3. Insert real positions into portfolio_positions
     if (positions.length > 0) {
-      const positionsToInsert = positions.map((pos: any) => ({
+      const positionsToInsert = positions.map((pos: Record<string, unknown>) => ({
         title: `${pos.symbol} Position`,
         description: `${pos.qty} shares at $${parseFloat(pos.current_price).toFixed(2)}`,
         symbol: pos.symbol,
@@ -96,7 +96,7 @@ export async function POST() {
 
     // 6. Insert real orders into trading_logs
     if (orders.length > 0) {
-      const logsToInsert = orders.map((order: any) => ({
+      const logsToInsert = orders.map((order: Record<string, unknown>) => ({
         title: `${order.symbol} ${order.side.toUpperCase()} Order`,
         description: `${order.type} order - ${order.status}`,
         action: order.side.toUpperCase(),
