@@ -37,7 +37,7 @@ export default function Home() {
             </div>
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">AI Trading Dashboard</h1>
-          <p className="text-gray-300">Monitor your AI trading agent's performance</p>
+          <p className="text-gray-300">Monitor your AI trading agent&apos;s performance</p>
         </div>
 
         {/* Features */}

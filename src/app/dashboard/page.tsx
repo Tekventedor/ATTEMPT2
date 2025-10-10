@@ -26,7 +26,7 @@ import {
   Target,
   AlertCircle
 } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { format } from 'date-fns';
 
 interface TradingLog {
@@ -40,7 +40,7 @@ interface TradingLog {
   total_value: number | null;
   reason: string | null;
   confidence_score: number | null;
-  market_data: any;
+  market_data: Record<string, unknown>;
   tags: string[];
   timestamp: string;
 }
@@ -164,7 +164,6 @@ export default function TradingDashboard() {
   }
 
   const totalUnrealizedPnL = positions.reduce((sum, pos) => sum + (pos.unrealized_pnl || 0), 0);
-  const totalMarketValue = positions.reduce((sum, pos) => sum + (pos.total_value || 0), 0);
   const winRate = tradingLogs.filter(log => log.action === 'SELL' && (log.total_value || 0) > 0).length / 
                  Math.max(tradingLogs.filter(log => log.action === 'SELL').length, 1) * 100;
 
@@ -350,7 +349,7 @@ export default function TradingDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {positions.map((position, index) => (
+                  {positions.map((position) => (
                     <tr key={position.id} className="border-b border-white/10">
                       <td className="py-3 px-4 font-medium">{position.symbol || '-'}</td>
                       <td className="py-3 px-4">{position.quantity || '-'}</td>
@@ -392,7 +391,7 @@ export default function TradingDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {tradingLogs.map((log, index) => (
+                  {tradingLogs.map((log) => (
                     <tr key={log.id} className="border-b border-white/10">
                       <td className="py-3 px-4 text-sm">
                         {format(new Date(log.timestamp), 'MM/dd HH:mm')}
