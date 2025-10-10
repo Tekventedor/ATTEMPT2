@@ -273,9 +273,9 @@ export default function TradingDashboard() {
           <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-300 text-sm">Cash Available</p>
+                <p className="text-gray-300 text-sm">Active Positions</p>
                 <p className="text-2xl font-bold text-white">
-                  ${account?.cash?.toLocaleString() || '0'}
+                  {positions.length}
                 </p>
               </div>
               <Target className="w-8 h-8 text-blue-400" />
