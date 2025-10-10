@@ -13,7 +13,8 @@ async function alpacaRequest(endpoint: string) {
     throw new Error('Alpaca API credentials not configured');
   }
 
-  const response = await fetch(`${ALPACA_CONFIG.baseUrl}${endpoint}`, {
+  const url = `${ALPACA_CONFIG.baseUrl}${endpoint}`;
+  const response = await fetch(url, {
     headers: {
       'APCA-API-KEY-ID': ALPACA_CONFIG.apiKey,
       'APCA-API-SECRET-KEY': ALPACA_CONFIG.secretKey,
@@ -21,7 +22,9 @@ async function alpacaRequest(endpoint: string) {
   });
 
   if (!response.ok) {
-    throw new Error(`Alpaca API error: ${response.status} ${response.statusText}`);
+    const errorBody = await response.text();
+    console.error(`Alpaca API error for ${url}:`, errorBody);
+    throw new Error(`Alpaca API error: ${response.status} ${response.statusText} - ${errorBody}`);
   }
 
   return response.json();
@@ -61,10 +64,13 @@ export async function GET(request: NextRequest) {
       
       case 'portfolio-history':
         // Get portfolio history from tradingbot account
-        const history = await alpacaRequest('/v2/account/portfolio/history?period=1M&timeframe=1Day');
+        // Use simplified parameters to avoid 422 errors
+        const history = await alpacaRequest('/v2/account/portfolio/history?timeframe=1D&period=1M');
         return NextResponse.json({
-          equity: history.equity,
-          timestamp: history.timestamp,
+          equity: history.equity || [],
+          timestamp: history.timestamp || [],
+          profit_loss: history.profit_loss || [],
+          profit_loss_pct: history.profit_loss_pct || [],
         });
       
       case 'orders':
@@ -77,29 +83,14 @@ export async function GET(request: NextRequest) {
     }
   } catch (error) {
     console.error('Alpaca API Error:', error);
-    
-    // Return mock data if API fails (for development)
-    const mockData = {
-      account: {
-        portfolio_value: 50000,
-        cash: 10000,
-        buying_power: 20000,
-        equity: 50000,
-        account_number: 'tradingbot',
-        status: 'ACTIVE',
-      },
-      positions: [],
-      'portfolio-history': {
-        equity: [48000, 48500, 49000, 49500, 50000],
-        timestamp: [],
-      },
-      orders: [],
-    };
-    
-    if (endpoint && mockData[endpoint as keyof typeof mockData]) {
-      return NextResponse.json(mockData[endpoint as keyof typeof mockData]);
-    }
-    
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('API Key exists:', !!ALPACA_CONFIG.apiKey);
+    console.error('Secret Key exists:', !!ALPACA_CONFIG.secretKey);
+
+    return NextResponse.json({
+      error: 'Failed to fetch data from Alpaca API',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      hasApiKey: !!ALPACA_CONFIG.apiKey,
+      hasSecretKey: !!ALPACA_CONFIG.secretKey
+    }, { status: 500 });
   }
 }
