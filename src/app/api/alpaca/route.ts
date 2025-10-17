@@ -83,8 +83,8 @@ export async function GET(request: NextRequest) {
           return NextResponse.json({ error: 'Missing start or end date' }, { status: 400 });
         }
 
-        // Twelve Data API endpoint for time series
-        const twelveDataUrl = `https://api.twelvedata.com/time_series?symbol=SPY&interval=1h&start_date=${start.split('T')[0]}&end_date=${end.split('T')[0]}&apikey=3691150323a643eb828fb7bf156ea0e9&format=JSON`;
+        // Twelve Data API endpoint for time series (15min intervals for more granular data)
+        const twelveDataUrl = `https://api.twelvedata.com/time_series?symbol=SPY&interval=15min&start_date=${start.split('T')[0]}&end_date=${end.split('T')[0]}&apikey=3691150323a643eb828fb7bf156ea0e9&format=JSON`;
 
         try {
           const response = await fetch(twelveDataUrl);

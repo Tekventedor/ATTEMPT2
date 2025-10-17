@@ -238,7 +238,7 @@ export default function TradingDashboard() {
           let comparisonData = [];
 
           if (spyBars && spyBars.length > 0) {
-            // Find the SPY price at the SAME time as the portfolio starts (not Oct 10 00:00, but when portfolio actually started)
+            // Find the SPY price at the SAME time as the portfolio starts
             const firstPortfolioTimestamp = formattedHistory[0].timestamp;
             const initialSpyBar = spyBars.reduce((prev: { t: string; c: number }, curr: { t: string; c: number }) => {
               const prevDiff = Math.abs(new Date(prev.t).getTime() - firstPortfolioTimestamp);
@@ -249,9 +249,10 @@ export default function TradingDashboard() {
 
             console.log('Portfolio starts at:', new Date(firstPortfolioTimestamp).toISOString());
             console.log('Initial SPY price:', initialSpyPrice, 'at', initialSpyBar.t);
+            console.log('Total SPY bars received:', spyBars.length);
 
+            // Use portfolio timestamps as the base (matches your portfolio data points)
             comparisonData = formattedHistory.map((item) => {
-              // Find closest SPY bar by timestamp (use actual timestamp, not formatted date string)
               const itemTimestamp = item.timestamp;
               const closestSpyBar = spyBars.reduce((prev: { t: string; c: number }, curr: { t: string; c: number }) => {
                 const prevDiff = Math.abs(new Date(prev.t).getTime() - itemTimestamp);
@@ -907,6 +908,8 @@ export default function TradingDashboard() {
                   dataKey="date"
                   stroke="#9CA3AF"
                   style={{ fontSize: '12px' }}
+                  interval="preserveStartEnd"
+                  minTickGap={50}
                 />
                 <YAxis
                   stroke="#9CA3AF"
