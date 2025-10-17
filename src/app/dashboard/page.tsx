@@ -235,7 +235,11 @@ export default function TradingDashboard() {
 
           // Calculate comparison data
           const initialPortfolioValue = formattedHistory[0].value;
-          let comparisonData = [];
+          let comparisonData: {
+            date: string,
+            spyReturn: number,
+            portfolioReturn: number
+          }[] = [];
 
           if (spyBars && spyBars.length > 0) {
             // Find the SPY price at the SAME time as the portfolio starts
