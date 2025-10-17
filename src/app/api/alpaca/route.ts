@@ -90,8 +90,13 @@ export async function GET(request: NextRequest) {
         const cacheKey = `spy-bars:${start.split('T')[0]}:${end.split('T')[0]}`;
 
         try {
-          // Try to get cached data from Vercel KV
-          const cachedData = await kv.get<{ bars: Array<{ t: string; c: number }> }>(cacheKey);
+          // Try to get cached data from Vercel KV (if configured)
+          let cachedData = null;
+          try {
+            cachedData = await kv.get<{ bars: Array<{ t: string; c: number }> }>(cacheKey);
+          } catch (kvError) {
+            console.log('⚠️ Vercel KV not configured, fetching fresh data');
+          }
 
           if (cachedData) {
             console.log('📦 Returning cached SPY data from Vercel KV');
@@ -123,9 +128,13 @@ export async function GET(request: NextRequest) {
 
             const responseData = { bars };
 
-            // Cache in Vercel KV with 1 hour expiration
-            await kv.set(cacheKey, responseData, { ex: CACHE_DURATION_SECONDS });
-            console.log(`✅ Cached SPY data in Vercel KV for 1 hour`);
+            // Cache in Vercel KV with 1 hour expiration (if configured)
+            try {
+              await kv.set(cacheKey, responseData, { ex: CACHE_DURATION_SECONDS });
+              console.log(`✅ Cached SPY data in Vercel KV for 1 hour`);
+            } catch (kvError) {
+              console.log('⚠️ Vercel KV not configured, skipping cache');
+            }
 
             return NextResponse.json(responseData);
           }
