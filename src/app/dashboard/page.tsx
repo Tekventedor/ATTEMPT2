@@ -389,6 +389,7 @@ export default function TradingDashboard() {
                 <XAxis dataKey="date" stroke="#9CA3AF" style={{ fontSize: '12px' }} />
                 <YAxis
                   stroke="#9CA3AF"
+                  domain={[3000, 15000]}
                   tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
                   style={{ fontSize: '12px' }}
                 />
@@ -437,11 +438,11 @@ export default function TradingDashboard() {
             </div>
           </div>
 
-          {/* AI Insights & Activity Logs - 40% width (2/5 columns) */}
+          {/* Activity Log - 40% width (2/5 columns) */}
           <div className="lg:col-span-2 bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20">
             <div className="flex items-center space-x-2 mb-4">
-              <Brain className="w-5 h-5 text-purple-400" />
-              <h3 className="text-lg font-semibold text-white">AI Insights & Activity Log</h3>
+              <Activity className="w-5 h-5 text-purple-400" />
+              <h3 className="text-lg font-semibold text-white">Activity Log</h3>
             </div>
 
             {/* Activity Log */}
