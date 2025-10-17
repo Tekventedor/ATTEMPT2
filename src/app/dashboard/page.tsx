@@ -673,7 +673,7 @@ export default function TradingDashboard() {
                         <div className="bg-gray-800 border border-gray-600 rounded-lg p-3 shadow-lg">
                           <p className="text-gray-300 text-sm mb-1 font-medium">{label}</p>
                           <p className="text-white font-semibold text-base mb-2">
-                            Portfolio: ${payload[0].value.toLocaleString()}
+                            Portfolio: ${(payload[0]?.value ?? 0).toLocaleString()}
                           </p>
                           {tradesAtTime.length > 0 && (
                             <div className="mt-2 pt-2 border-t border-gray-600">
