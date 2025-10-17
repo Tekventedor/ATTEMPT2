@@ -404,28 +404,6 @@ export default function TradingDashboard() {
                     return [`$${value.toLocaleString()} (${pnl >= 0 ? '+' : ''}${pnl.toFixed(1)}%)`, `${name}`];
                   }}
                 />
-                {/* Trade Annotations - Vertical lines for buy/sell events */}
-                {tradingLogs.slice(0, 20).map((log) => {
-                  if (!log.timestamp) return null;
-                  const tradeDate = format(new Date(log.timestamp), 'MM/dd HH:mm');
-                  const isBuy = log.action === 'BUY';
-
-                  return (
-                    <ReferenceLine
-                      key={log.id}
-                      x={tradeDate}
-                      stroke={isBuy ? '#10b981' : '#ef4444'}
-                      strokeWidth={2}
-                      strokeDasharray="3 3"
-                      label={{
-                        value: '',
-                        position: 'top',
-                      }}
-                    >
-                      <title>{`${log.action} ${log.symbol} - ${log.quantity} @ $${log.price?.toFixed(2)} = $${log.total_value?.toLocaleString()}`}</title>
-                    </ReferenceLine>
-                  );
-                })}
                 {/* Individual Stock Lines */}
                 {positions.map((pos, index) => pos.symbol && (
                   <Line
