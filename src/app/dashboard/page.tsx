@@ -196,41 +196,29 @@ export default function TradingDashboard() {
           });
         setPortfolioHistory(formattedHistory);
 
-        // Fetch real S&P 500 data for comparison (with caching based on order count)
+        // Fetch real S&P 500 data for comparison (no caching - always fetch fresh)
         if (formattedHistory.length > 0) {
-          // Get cached SPY data from localStorage
-          const cachedSPY = localStorage.getItem('spy_cache');
-          const cachedOrderCount = localStorage.getItem('spy_order_count');
-
-          // Only fetch new SPY data if order count changed (new trade occurred)
-          const currentOrderCount = ordersData?.length || 0;
-          const shouldRefreshSPY = !cachedSPY || !cachedOrderCount || parseInt(cachedOrderCount) !== currentOrderCount;
+          // Clear any old cached data
+          localStorage.removeItem('spy_cache');
+          localStorage.removeItem('spy_order_count');
 
           let spyBars = null;
 
-          if (shouldRefreshSPY) {
-            console.log('📊 Fetching fresh S&P 500 data (new trade detected or no cache)');
-            // Force start date to October 10, 2024
-            const startDate = new Date('2024-10-10T00:00:00Z');
-            const endDate = new Date(formattedHistory[formattedHistory.length - 1].timestamp);
-            const startISO = startDate.toISOString();
-            const endISO = endDate.toISOString();
+          console.log('📊 Fetching fresh S&P 500 data');
+          // Force start date to October 10, 2024
+          const startDate = new Date('2024-10-10T00:00:00Z');
+          const endDate = new Date(formattedHistory[formattedHistory.length - 1].timestamp);
+          const startISO = startDate.toISOString();
+          const endISO = endDate.toISOString();
 
-            // Fetch SPY data from Twelve Data
-            const spyResponse = await fetch(`/api/alpaca?endpoint=spy-bars&start=${startISO}&end=${endISO}`);
+          // Fetch SPY data from Twelve Data
+          const spyResponse = await fetch(`/api/alpaca?endpoint=spy-bars&start=${startISO}&end=${endISO}`);
 
-            if (spyResponse.ok) {
-              const spyHistory = await spyResponse.json();
-              if (spyHistory && spyHistory.bars && Array.isArray(spyHistory.bars) && spyHistory.bars.length > 0) {
-                spyBars = spyHistory.bars;
-                // Cache the SPY data and current order count
-                localStorage.setItem('spy_cache', JSON.stringify(spyBars));
-                localStorage.setItem('spy_order_count', currentOrderCount.toString());
-              }
+          if (spyResponse.ok) {
+            const spyHistory = await spyResponse.json();
+            if (spyHistory && spyHistory.bars && Array.isArray(spyHistory.bars) && spyHistory.bars.length > 0) {
+              spyBars = spyHistory.bars;
             }
-          } else {
-            console.log('💾 Using cached S&P 500 data (no new trades)');
-            spyBars = JSON.parse(cachedSPY!);
           }
 
           // Calculate comparison data
