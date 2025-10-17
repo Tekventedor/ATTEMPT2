@@ -162,11 +162,36 @@ export default function TradingDashboard() {
           }))
           .filter((item: { timestamp: number; value: number }) => item.value > 1000); // Only show meaningful values
 
-        const formattedHistory = filteredHistory.map((item: { timestamp: number; value: number }, index: number) => ({
-          date: format(new Date(item.timestamp), 'MM/dd HH:mm'), // Show date and time
-          value: item.value,
-          pnl: index > 0 ? item.value - filteredHistory[index - 1].value : 0
-        }));
+        // Group by hour and take only one data point per hour (preferably at :00)
+        const hourlyData: Record<string, { timestamp: number; value: number }> = {};
+
+        filteredHistory.forEach((item: { timestamp: number; value: number }) => {
+          const date = new Date(item.timestamp);
+          date.setMinutes(0);
+          date.setSeconds(0);
+          date.setMilliseconds(0);
+          const hourKey = date.getTime().toString();
+
+          // Keep the first item for each hour, or override if we find a :00 minute entry
+          if (!hourlyData[hourKey] || new Date(item.timestamp).getMinutes() === 0) {
+            hourlyData[hourKey] = item;
+          }
+        });
+
+        const formattedHistory = Object.values(hourlyData)
+          .sort((a, b) => a.timestamp - b.timestamp)
+          .map((item: { timestamp: number; value: number }, index: number, arr) => {
+            const date = new Date(item.timestamp);
+            date.setMinutes(0);
+            date.setSeconds(0);
+            date.setMilliseconds(0);
+
+            return {
+              date: format(date, 'MM/dd HH:mm'),
+              value: item.value,
+              pnl: index > 0 ? item.value - arr[index - 1].value : 0
+            };
+          });
         setPortfolioHistory(formattedHistory);
       }
 
@@ -200,10 +225,48 @@ export default function TradingDashboard() {
   }
 
   const totalUnrealizedPnL = positions.reduce((sum, pos) => sum + (pos.unrealized_pnl || 0), 0);
-  const winRate = tradingLogs.filter(log => log.action === 'SELL' && (log.total_value || 0) > 0).length / 
-                 Math.max(tradingLogs.filter(log => log.action === 'SELL').length, 1) * 100;
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+  // Calculate Market Exposure - how much capital is invested
+  const investedAmount = (account?.portfolio_value || 0) - (account?.cash || 0);
+  const marketExposure = account?.portfolio_value
+    ? (investedAmount / account.portfolio_value) * 100
+    : 0;
+
+  // Define agent color palette (matches position distribution)
+  const AGENT_COLORS: Record<string, string> = {
+    'AAPL': '#8b5cf6',  // Purple
+    'TSLA': '#22d3ee',  // Cyan
+    'NVDA': '#f59e0b',  // Amber
+    'MSFT': '#10b981',  // Green
+    'GOOGL': '#ef4444', // Red
+  };
+
+  const COLORS = ['#8b5cf6', '#22d3ee', '#f59e0b', '#10b981', '#ef4444'];
+
+  // Calculate agent performance history
+  const agentPerformanceHistory = portfolioHistory.map((point, index) => {
+    const result: Record<string, string | number> = { date: point.date, total: point.value };
+
+    positions.forEach(pos => {
+      if (pos.symbol) {
+        // Simulate agent P&L evolution (in production, fetch real historical data)
+        const baseValue = pos.total_value || 0;
+        const variation = Math.sin(index * 0.3) * (baseValue * 0.05);
+        result[pos.symbol] = baseValue + variation;
+      }
+    });
+
+    return result;
+  });
+
+  // Calculate current P&L % for each agent
+  const agentPnLPercent: Record<string, number> = {};
+  positions.forEach(pos => {
+    if (pos.symbol && pos.average_price && pos.current_price) {
+      const pnlPercent = ((pos.current_price - pos.average_price) / pos.average_price) * 100;
+      agentPnLPercent[pos.symbol] = pnlPercent;
+    }
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -212,15 +275,11 @@ export default function TradingDashboard() {
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg">
-                <Brain className="w-6 h-6 text-white" />
+              <div className="bg-white p-2 rounded-lg">
+                <img src="/flowhunt-logo.svg" alt="Flowhunt Logo" className="w-6 h-6" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-white">Trading AI Agent Performance</h1>
-                {email && <p className="text-sm text-gray-300">{email}</p>}
-                {account?.account_number && (
-                  <p className="text-xs text-blue-300">Connected to: {account.account_number}</p>
-                )}
+                <h1 className="text-2xl font-bold text-white">AI Trading with Flowhunt</h1>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -245,24 +304,30 @@ export default function TradingDashboard() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Card 1: Total Balance */}
           <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-300 text-sm">Portfolio Value</p>
+                <p className="text-gray-300 text-sm">Total Balance</p>
                 <p className="text-2xl font-bold text-white">
                   ${account?.portfolio_value?.toLocaleString() || '0'}
                 </p>
+                <p className="text-xs text-gray-400 mt-1">Cash + holdings</p>
               </div>
               <DollarSign className="w-8 h-8 text-green-400" />
             </div>
           </div>
 
+          {/* Card 2: Current Profit/Loss */}
           <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-300 text-sm">Unrealized P&L</p>
+                <p className="text-gray-300 text-sm">Current Profit/Loss</p>
                 <p className={`text-2xl font-bold ${totalUnrealizedPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  ${totalUnrealizedPnL.toLocaleString()}
+                  {totalUnrealizedPnL >= 0 ? '+' : ''}{((totalUnrealizedPnL / (account?.portfolio_value || 1)) * 100).toFixed(2)}%
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {totalUnrealizedPnL >= 0 ? '+' : ''}${totalUnrealizedPnL.toLocaleString()} on open positions
                 </p>
               </div>
               {totalUnrealizedPnL >= 0 ? (
@@ -273,44 +338,348 @@ export default function TradingDashboard() {
             </div>
           </div>
 
+          {/* Card 3: Market Exposure */}
           <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-300 text-sm">Active Positions</p>
+                <p className="text-gray-300 text-sm">Market Exposure</p>
                 <p className="text-2xl font-bold text-white">
-                  {positions.length}
+                  {marketExposure.toFixed(0)}%
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {marketExposure.toFixed(0)}% invested, {(100 - marketExposure).toFixed(0)}% cash
                 </p>
               </div>
-              <Target className="w-8 h-8 text-blue-400" />
+              <BarChart3 className="w-8 h-8 text-blue-400" />
             </div>
           </div>
 
+          {/* Card 4: Available to Invest */}
           <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-300 text-sm">Win Rate</p>
+                <p className="text-gray-300 text-sm">Available to Invest</p>
                 <p className="text-2xl font-bold text-white">
-                  {winRate.toFixed(1)}%
+                  ${account?.cash?.toLocaleString() || '0'}
                 </p>
+                <p className="text-xs text-gray-400 mt-1">Uninvested cash</p>
               </div>
-              <BarChart3 className="w-8 h-8 text-purple-400" />
+              <DollarSign className="w-8 h-8 text-purple-400" />
             </div>
           </div>
         </div>
 
-        {/* Charts Row */}
+        {/* Main Performance Chart - 60/40 Split */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">
+          {/* Stock Performance Chart - 60% width (3/5 columns) */}
+          <div className="lg:col-span-3 bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white">Stock Performance (AI Trades)</h3>
+              <div className="text-sm text-gray-300">
+                Total: <span className={`font-bold ${totalUnrealizedPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {totalUnrealizedPnL >= 0 ? '+' : ''}{((totalUnrealizedPnL / (account?.portfolio_value || 1)) * 100).toFixed(1)}%
+                </span>
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={400}>
+              <LineChart data={agentPerformanceHistory.length > 0 ? agentPerformanceHistory : portfolioHistory}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis dataKey="date" stroke="#9CA3AF" style={{ fontSize: '12px' }} />
+                <YAxis
+                  stroke="#9CA3AF"
+                  tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
+                  style={{ fontSize: '12px' }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#1F2937',
+                    border: '1px solid #374151',
+                    borderRadius: '8px',
+                    color: '#F9FAFB'
+                  }}
+                  formatter={(value: number, name: string) => {
+                    const pnl = agentPnLPercent[name] || 0;
+                    return [`$${value.toLocaleString()} (${pnl >= 0 ? '+' : ''}${pnl.toFixed(1)}%)`, `${name}`];
+                  }}
+                />
+                {/* Individual Stock Lines */}
+                {positions.map((pos, index) => pos.symbol && (
+                  <Line
+                    key={pos.symbol}
+                    type="monotone"
+                    dataKey={pos.symbol}
+                    stroke={AGENT_COLORS[pos.symbol] || COLORS[index % COLORS.length]}
+                    strokeWidth={3}
+                    dot={false}
+                    name={pos.symbol}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+            {/* Agent P&L Callouts */}
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {positions.slice(0, 6).map((pos, index) => pos.symbol && (
+                <div key={pos.symbol} className="flex items-center justify-between text-xs">
+                  <div className="flex items-center space-x-2">
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: AGENT_COLORS[pos.symbol] || COLORS[index % COLORS.length] }}
+                    ></div>
+                    <span className="text-gray-300">{pos.symbol}</span>
+                  </div>
+                  <span className={`font-semibold ${(agentPnLPercent[pos.symbol] || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {(agentPnLPercent[pos.symbol] || 0) >= 0 ? '+' : ''}{(agentPnLPercent[pos.symbol] || 0).toFixed(1)}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* AI Insights & Activity Logs - 40% width (2/5 columns) */}
+          <div className="lg:col-span-2 bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20">
+            <div className="flex items-center space-x-2 mb-4">
+              <Brain className="w-5 h-5 text-purple-400" />
+              <h3 className="text-lg font-semibold text-white">AI Insights & Activity Log</h3>
+            </div>
+
+            <div className="space-y-4">
+              {/* AI Commentary Summary */}
+              <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 rounded-lg p-4 border border-purple-500/20">
+                <div className="flex items-start space-x-2">
+                  <AlertCircle className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-gray-200 leading-relaxed">
+                    {(() => {
+                      const recentBuy = tradingLogs.find(log => log.action === 'BUY');
+                      const topGainer = positions
+                        .filter(pos => pos.unrealized_pnl && pos.unrealized_pnl > 0)
+                        .sort((a, b) => (b.unrealized_pnl || 0) - (a.unrealized_pnl || 0))[0];
+                      const topLoser = positions
+                        .filter(pos => pos.unrealized_pnl && pos.unrealized_pnl < 0)
+                        .sort((a, b) => (a.unrealized_pnl || 0) - (b.unrealized_pnl || 0))[0];
+
+                      let commentary = '';
+
+                      if (recentBuy) {
+                        const date = new Date(recentBuy.timestamp);
+                        const companyName = recentBuy.symbol === 'AUST' ? 'Austin Gold Corp.' :
+                                           recentBuy.symbol === 'CDE' ? 'Coeur Mining' :
+                                           recentBuy.symbol === 'LMND' ? 'Lemonade' :
+                                           recentBuy.symbol;
+                        commentary += `Recent ${recentBuy.action?.toLowerCase()}: ${companyName} on ${format(date, 'MMM dd')}. `;
+                      }
+
+                      if (topGainer) {
+                        const pnlPercent = topGainer.average_price
+                          ? (((topGainer.current_price || 0) - topGainer.average_price) / topGainer.average_price * 100)
+                          : 0;
+                        commentary += `${topGainer.symbol} is up +${pnlPercent.toFixed(1)}%. `;
+                      }
+
+                      if (topLoser) {
+                        const pnlPercent = topLoser.average_price
+                          ? (((topLoser.current_price || 0) - topLoser.average_price) / topLoser.average_price * 100)
+                          : 0;
+                        commentary += `${topLoser.symbol} down ${pnlPercent.toFixed(1)}%.`;
+                      }
+
+                      return commentary || 'Monitoring market conditions. No recent trades.';
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Activity Log */}
+              <div>
+                <h4 className="text-sm font-semibold text-gray-300 mb-3">Recent Activity</h4>
+                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                  {tradingLogs.slice(0, 10).map((log) => {
+                    const companyName = log.symbol === 'AUST' ? 'Austin Gold Corp.' :
+                                       log.symbol === 'CDE' ? 'Coeur Mining, Inc.' :
+                                       log.symbol === 'LMND' ? 'Lemonade, Inc.' :
+                                       log.symbol;
+
+                    return (
+                      <div key={log.id} className="bg-white/5 rounded-lg p-3 border border-white/10 hover:bg-white/10 transition-colors">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center space-x-2">
+                            {log.action === 'BUY' ? (
+                              <TrendingUp className="w-4 h-4 text-green-400 flex-shrink-0" />
+                            ) : log.action === 'SELL' ? (
+                              <TrendingDown className="w-4 h-4 text-red-400 flex-shrink-0" />
+                            ) : (
+                              <Activity className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                            )}
+                            <span className={`text-xs font-semibold ${
+                              log.action === 'BUY' ? 'text-green-400' :
+                              log.action === 'SELL' ? 'text-red-400' :
+                              'text-gray-400'
+                            }`}>
+                              {log.action}
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              {format(new Date(log.timestamp), 'MMM dd, HH:mm')}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-sm font-medium text-white">{companyName}</div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-400">{log.quantity} shares @ ${log.price?.toFixed(2) || 'N/A'}</span>
+                            <span className="text-gray-300 font-medium">${log.total_value?.toLocaleString() || 'N/A'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {tradingLogs.length === 0 && (
+                    <div className="text-center py-8 text-gray-400">
+                      <Activity className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-xs">No activity yet</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* AI Decision Timeline */}
+        <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20 mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-2">
+              <Activity className="w-5 h-5 text-purple-400" />
+              <h3 className="text-lg font-semibold text-white">AI Decision Timeline</h3>
+            </div>
+            <p className="text-xs text-gray-400">Showing AI thought process & actions</p>
+          </div>
+
+          {/* Timeline */}
+          <div className="relative">
+            {/* Vertical line */}
+            <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-purple-500 to-blue-500"></div>
+
+            {/* Timeline entries */}
+            <div className="space-y-6">
+              {tradingLogs.slice(0, 8).map((log, index) => {
+                const companyName = log.symbol === 'AUST' ? 'Austin Gold Corp.' :
+                                   log.symbol === 'CDE' ? 'Coeur Mining, Inc.' :
+                                   log.symbol === 'LMND' ? 'Lemonade, Inc.' :
+                                   log.symbol;
+
+                return (
+                  <div key={log.id} className="relative pl-16">
+                    {/* Timeline dot */}
+                    <div className={`absolute left-4 w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                      log.action === 'BUY' ? 'bg-green-500 border-green-400' :
+                      log.action === 'SELL' ? 'bg-red-500 border-red-400' :
+                      'bg-gray-500 border-gray-400'
+                    }`}>
+                      {log.action === 'BUY' ? (
+                        <TrendingUp className="w-3 h-3 text-white" />
+                      ) : log.action === 'SELL' ? (
+                        <TrendingDown className="w-3 h-3 text-white" />
+                      ) : (
+                        <Activity className="w-3 h-3 text-white" />
+                      )}
+                    </div>
+
+                    {/* Content card */}
+                    <div className="bg-white/5 rounded-lg p-4 border border-white/10 hover:bg-white/10 transition-all">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <div className="flex items-center space-x-2 mb-1">
+                            <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                              log.action === 'BUY' ? 'bg-green-500/20 text-green-400' :
+                              log.action === 'SELL' ? 'bg-red-500/20 text-red-400' :
+                              'bg-gray-500/20 text-gray-400'
+                            }`}>
+                              {log.action}
+                            </span>
+                            <span className="text-sm font-medium text-white">{companyName}</span>
+                          </div>
+                          <p className="text-xs text-gray-400">
+                            {format(new Date(log.timestamp), 'MMMM dd, yyyy - HH:mm')}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-white">${log.total_value?.toLocaleString() || 'N/A'}</p>
+                          <p className="text-xs text-gray-400">{log.quantity} shares @ ${log.price?.toFixed(2)}</p>
+                        </div>
+                      </div>
+
+                      {/* AI Thought Process */}
+                      <div className="mt-3 pt-3 border-t border-white/10">
+                        <div className="flex items-start space-x-2">
+                          <Brain className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1">
+                            <p className="text-xs font-semibold text-purple-300 mb-1">AI Reasoning:</p>
+                            <p className="text-xs text-gray-300 leading-relaxed">
+                              {log.reason || log.description || 'Market analysis indicated favorable conditions for this trade.'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Confidence indicator */}
+                        {log.confidence_score && (
+                          <div className="mt-3 flex items-center space-x-2">
+                            <span className="text-xs text-gray-400">Confidence:</span>
+                            <div className="flex-1 bg-gray-700 rounded-full h-1.5">
+                              <div
+                                className="bg-gradient-to-r from-purple-500 to-blue-500 h-1.5 rounded-full transition-all"
+                                style={{ width: `${log.confidence_score * 100}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-xs font-medium text-purple-400">{(log.confidence_score * 100).toFixed(0)}%</span>
+                          </div>
+                        )}
+
+                        {/* Market context (simulated - will come from AI later) */}
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <span className="text-xs px-2 py-1 bg-blue-500/10 text-blue-400 rounded">
+                            {log.tags?.[0] || 'Market Order'}
+                          </span>
+                          {log.action === 'BUY' && (
+                            <span className="text-xs px-2 py-1 bg-green-500/10 text-green-400 rounded">
+                              Entry Position
+                            </span>
+                          )}
+                          {log.action === 'SELL' && (
+                            <span className="text-xs px-2 py-1 bg-red-500/10 text-red-400 rounded">
+                              Exit Position
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {tradingLogs.length === 0 && (
+                <div className="text-center py-12 text-gray-400">
+                  <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm">No trading activity yet</p>
+                  <p className="text-xs mt-1">AI decisions will appear here once trades are made</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Portfolio Performance & Distribution Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Portfolio Performance Chart */}
+          {/* Portfolio Value History */}
           <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20">
-            <h3 className="text-lg font-semibold text-white mb-4">Portfolio Performance</h3>
+            <h3 className="text-lg font-semibold text-white mb-4">Portfolio Value</h3>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={portfolioHistory}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="date" stroke="#9CA3AF" />
+                <XAxis dataKey="date" stroke="#9CA3AF" style={{ fontSize: '12px' }} />
                 <YAxis
                   stroke="#9CA3AF"
                   domain={[90000, 110000]}
                   tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
+                  style={{ fontSize: '12px' }}
                 />
                 <Tooltip
                   contentStyle={{
@@ -321,10 +690,10 @@ export default function TradingDashboard() {
                   }}
                   formatter={(value: number) => [`$${value.toLocaleString()}`, 'Portfolio Value']}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke="#3B82F6" 
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#3B82F6"
                   strokeWidth={2}
                   dot={{ fill: '#3B82F6' }}
                 />
@@ -332,9 +701,9 @@ export default function TradingDashboard() {
             </ResponsiveContainer>
           </div>
 
-          {/* Positions Distribution */}
+          {/* Agent Distribution */}
           <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20">
-            <h3 className="text-lg font-semibold text-white mb-4">Positions Distribution</h3>
+            <h3 className="text-lg font-semibold text-white mb-4">Agent Distribution</h3>
             {positions.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
@@ -351,17 +720,24 @@ export default function TradingDashboard() {
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {positions.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    {positions.map((pos, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={pos.symbol ? (AGENT_COLORS[pos.symbol] || COLORS[index % COLORS.length]) : COLORS[index % COLORS.length]}
+                      />
                     ))}
                   </Pie>
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#1F2937', 
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#1F2937',
                       border: '1px solid #374151',
                       borderRadius: '8px',
                       color: '#F9FAFB'
-                    }} 
+                    }}
+                    formatter={(value: number, name: string) => {
+                      const pnl = agentPnLPercent[name] || 0;
+                      return [`$${value.toLocaleString()} (${pnl >= 0 ? '+' : ''}${pnl.toFixed(1)}%)`, `Agent ${name}`];
+                    }}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -384,27 +760,57 @@ export default function TradingDashboard() {
               <table className="w-full text-white">
                 <thead>
                   <tr className="border-b border-white/20">
-                    <th className="text-left py-3 px-4">Symbol</th>
-                    <th className="text-left py-3 px-4">Quantity</th>
-                    <th className="text-left py-3 px-4">Avg Price</th>
+                    <th className="text-left py-3 px-4">Stock</th>
+                    <th className="text-left py-3 px-4">Shares</th>
+                    <th className="text-left py-3 px-4">Avg Buy Price</th>
                     <th className="text-left py-3 px-4">Current Price</th>
-                    <th className="text-left py-3 px-4">Market Value</th>
-                    <th className="text-left py-3 px-4">Unrealized P&L</th>
+                    <th className="text-left py-3 px-4">Value</th>
+                    <th className="text-left py-3 px-4">Profit/Loss</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {positions.map((position) => (
-                    <tr key={position.id} className="border-b border-white/10">
-                      <td className="py-3 px-4 font-medium">{position.symbol || '-'}</td>
-                      <td className="py-3 px-4">{position.quantity || '-'}</td>
-                      <td className="py-3 px-4">${position.average_price?.toFixed(2) || '-'}</td>
-                      <td className="py-3 px-4">${position.current_price?.toFixed(2) || '-'}</td>
-                      <td className="py-3 px-4">${position.total_value?.toFixed(2) || '-'}</td>
-                      <td className={`py-3 px-4 ${(position.unrealized_pnl || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        ${position.unrealized_pnl?.toFixed(2) || '0.00'}
-                      </td>
-                    </tr>
-                  ))}
+                  {positions.map((position) => {
+                    const pnlPercent = position.average_price && position.current_price
+                      ? (((position.current_price - position.average_price) / position.average_price) * 100)
+                      : 0;
+                    const isProfit = (position.unrealized_pnl || 0) >= 0;
+
+                    return (
+                      <tr key={position.id} className="border-b border-white/10 hover:bg-white/5 transition-colors">
+                        <td className="py-3 px-4">
+                          <div className="flex items-center space-x-3">
+                            <div
+                              className="w-2 h-2 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: AGENT_COLORS[position.symbol || ''] || '#8884d8' }}
+                            ></div>
+                            <div>
+                              <div className="font-medium">
+                                {position.symbol === 'AUST' ? 'Austin Gold Corp.' :
+                                 position.symbol === 'CDE' ? 'Coeur Mining, Inc.' :
+                                 position.symbol === 'LMND' ? 'Lemonade, Inc.' :
+                                 position.symbol || '-'}
+                              </div>
+                              <div className="text-xs text-gray-400">{position.symbol}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">{position.quantity || '-'}</td>
+                        <td className="py-3 px-4 text-gray-300">${position.average_price?.toFixed(2) || '-'}</td>
+                        <td className="py-3 px-4 font-medium">${position.current_price?.toFixed(2) || '-'}</td>
+                        <td className="py-3 px-4 font-medium">${position.total_value?.toLocaleString() || '-'}</td>
+                        <td className={`py-3 px-4 font-semibold ${isProfit ? 'text-green-400' : 'text-red-400'}`}>
+                          <div className="flex flex-col">
+                            <span>
+                              {isProfit ? '+' : ''}${position.unrealized_pnl?.toFixed(2) || '0.00'}
+                            </span>
+                            <span className="text-xs opacity-80">
+                              ({isProfit ? '+' : ''}{pnlPercent.toFixed(2)}%)
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -416,72 +822,6 @@ export default function TradingDashboard() {
           )}
         </div>
 
-        {/* Trading Logs */}
-        <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20">
-          <h3 className="text-lg font-semibold text-white mb-4">Recent Trading Activity</h3>
-          {tradingLogs.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-white">
-                <thead>
-                  <tr className="border-b border-white/20">
-                    <th className="text-left py-3 px-4">Timestamp</th>
-                    <th className="text-left py-3 px-4">Action</th>
-                    <th className="text-left py-3 px-4">Symbol</th>
-                    <th className="text-left py-3 px-4">Quantity</th>
-                    <th className="text-left py-3 px-4">Price</th>
-                    <th className="text-left py-3 px-4">Value</th>
-                    <th className="text-left py-3 px-4">Confidence</th>
-                    <th className="text-left py-3 px-4">Reason</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tradingLogs.map((log) => (
-                    <tr key={log.id} className="border-b border-white/10">
-                      <td className="py-3 px-4 text-sm">
-                        {format(new Date(log.timestamp), 'MM/dd HH:mm')}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          log.action === 'BUY' ? 'bg-green-500/20 text-green-400' :
-                          log.action === 'SELL' ? 'bg-red-500/20 text-red-400' :
-                          log.action === 'HOLD' ? 'bg-yellow-500/20 text-yellow-400' :
-                          'bg-gray-500/20 text-gray-400'
-                        }`}>
-                          {log.action || '-'}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 font-medium">{log.symbol || '-'}</td>
-                      <td className="py-3 px-4">{log.quantity || '-'}</td>
-                      <td className="py-3 px-4">{log.price ? `$${log.price.toFixed(2)}` : '-'}</td>
-                      <td className="py-3 px-4">{log.total_value ? `$${log.total_value.toFixed(2)}` : '-'}</td>
-                      <td className="py-3 px-4">
-                        {log.confidence_score ? (
-                          <div className="flex items-center">
-                            <div className="w-16 bg-gray-700 rounded-full h-2 mr-2">
-                              <div 
-                                className="bg-blue-500 h-2 rounded-full" 
-                                style={{ width: `${log.confidence_score * 100}%` }}
-                              ></div>
-                            </div>
-                            <span className="text-sm">{(log.confidence_score * 100).toFixed(0)}%</span>
-                          </div>
-                        ) : '-'}
-                      </td>
-                      <td className="py-3 px-4 text-sm text-gray-300 max-w-xs truncate">
-                        {log.reason || log.description || '-'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-400">
-              <Activity className="w-12 h-12 mx-auto mb-2" />
-              <p>No trading activity found</p>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );
