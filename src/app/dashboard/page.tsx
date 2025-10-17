@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "../../utils/supabaseClient";
 // API functions for Alpaca data
 async function fetchAlpacaData(endpoint: string) {
   try {
@@ -26,7 +25,7 @@ import {
   Target,
   AlertCircle
 } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, ReferenceLine } from 'recharts';
 import { format } from 'date-fns';
 
 interface TradingLog {
@@ -210,7 +209,7 @@ export default function TradingDashboard() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    // Auth removed - redirect to home
     router.push("/");
   };
 
@@ -405,6 +404,28 @@ export default function TradingDashboard() {
                     return [`$${value.toLocaleString()} (${pnl >= 0 ? '+' : ''}${pnl.toFixed(1)}%)`, `${name}`];
                   }}
                 />
+                {/* Trade Annotations - Vertical lines for buy/sell events */}
+                {tradingLogs.slice(0, 20).map((log) => {
+                  if (!log.timestamp) return null;
+                  const tradeDate = format(new Date(log.timestamp), 'MM/dd HH:mm');
+                  const isBuy = log.action === 'BUY';
+
+                  return (
+                    <ReferenceLine
+                      key={log.id}
+                      x={tradeDate}
+                      stroke={isBuy ? '#10b981' : '#ef4444'}
+                      strokeWidth={2}
+                      strokeDasharray="3 3"
+                      label={{
+                        value: '',
+                        position: 'top',
+                      }}
+                    >
+                      <title>{`${log.action} ${log.symbol} - ${log.quantity} @ $${log.price?.toFixed(2)} = $${log.total_value?.toLocaleString()}`}</title>
+                    </ReferenceLine>
+                  );
+                })}
                 {/* Individual Stock Lines */}
                 {positions.map((pos, index) => pos.symbol && (
                   <Line
@@ -420,17 +441,17 @@ export default function TradingDashboard() {
               </LineChart>
             </ResponsiveContainer>
             {/* Agent P&L Callouts */}
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              {positions.slice(0, 6).map((pos, index) => pos.symbol && (
-                <div key={pos.symbol} className="flex items-center justify-between text-xs">
+            <div className="mt-4 grid grid-cols-3 gap-x-4 gap-y-2">
+              {positions.slice(0, 9).map((pos, index) => pos.symbol && (
+                <div key={pos.symbol} className="flex items-center justify-between text-sm">
                   <div className="flex items-center space-x-2">
                     <div
-                      className="w-3 h-3 rounded-full"
+                      className="w-3.5 h-3.5 rounded-full"
                       style={{ backgroundColor: AGENT_COLORS[pos.symbol] || COLORS[index % COLORS.length] }}
                     ></div>
-                    <span className="text-gray-300">{pos.symbol}</span>
+                    <span className="text-gray-200 font-medium">{pos.symbol}</span>
                   </div>
-                  <span className={`font-semibold ${(agentPnLPercent[pos.symbol] || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  <span className={`font-bold ml-2 ${(agentPnLPercent[pos.symbol] || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     {(agentPnLPercent[pos.symbol] || 0) >= 0 ? '+' : ''}{(agentPnLPercent[pos.symbol] || 0).toFixed(1)}%
                   </span>
                 </div>
@@ -657,7 +678,74 @@ export default function TradingDashboard() {
                     color: '#F9FAFB'
                   }}
                   formatter={(value: number) => [`$${value.toLocaleString()}`, 'Portfolio Value']}
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      // Find trades that occurred in this hour (rounded to match portfolio history)
+                      const tradesAtTime = tradingLogs.filter(log => {
+                        if (!log.timestamp) return false;
+                        const tradeTime = new Date(log.timestamp);
+                        tradeTime.setMinutes(0);
+                        tradeTime.setSeconds(0);
+                        tradeTime.setMilliseconds(0);
+                        const tradeDate = format(tradeTime, 'MM/dd HH:mm');
+                        return tradeDate === label;
+                      });
+
+                      return (
+                        <div className="bg-gray-800 border border-gray-600 rounded-lg p-3 shadow-lg">
+                          <p className="text-gray-300 text-sm mb-1 font-medium">{label}</p>
+                          <p className="text-white font-semibold text-base mb-2">
+                            Portfolio: ${payload[0].value.toLocaleString()}
+                          </p>
+                          {tradesAtTime.length > 0 && (
+                            <div className="mt-2 pt-2 border-t border-gray-600">
+                              <p className="text-xs text-gray-400 mb-2 font-semibold">
+                                {tradesAtTime.length} Trade{tradesAtTime.length > 1 ? 's' : ''} in this hour:
+                              </p>
+                              {tradesAtTime.map((trade) => (
+                                <div key={trade.id} className={`text-xs mb-1 ${trade.action === 'BUY' ? 'text-green-400' : 'text-red-400'}`}>
+                                  <span className="font-bold">{trade.action}</span> {trade.symbol} - {trade.quantity} shares @ ${trade.price?.toFixed(2)}
+                                  <span className="text-gray-400 ml-1">(${trade.total_value?.toLocaleString()})</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />
+                {/* Trade Annotations - Vertical lines for buy/sell events */}
+                {tradingLogs.filter(log => log.timestamp).map((log) => {
+                  // Round timestamp to nearest hour to match portfolio history
+                  const tradeTime = new Date(log.timestamp);
+                  tradeTime.setMinutes(0);
+                  tradeTime.setSeconds(0);
+                  tradeTime.setMilliseconds(0);
+                  const tradeDate = format(tradeTime, 'MM/dd HH:mm');
+                  const isBuy = log.action === 'BUY';
+
+                  // Check if this timestamp exists in portfolio history
+                  const existsInHistory = portfolioHistory.some(h => h.date === tradeDate);
+                  if (!existsInHistory) return null;
+
+                  return (
+                    <ReferenceLine
+                      key={log.id}
+                      x={tradeDate}
+                      stroke={isBuy ? '#10b981' : '#ef4444'}
+                      strokeWidth={2}
+                      strokeDasharray="3 3"
+                      label={{
+                        value: isBuy ? '▲' : '▼',
+                        position: 'top',
+                        fill: isBuy ? '#10b981' : '#ef4444',
+                        fontSize: 14,
+                      }}
+                    />
+                  );
+                })}
                 <Line
                   type="monotone"
                   dataKey="value"
