@@ -74,7 +74,7 @@ export default function TradingDashboard() {
   const [positions, setPositions] = useState<Position[]>([]);
   const [tradingLogs, setTradingLogs] = useState<TradingLog[]>([]);
   const [portfolioHistory, setPortfolioHistory] = useState<Array<{date: string, value: number, pnl: number}>>([]);
-  const [sp500Data, setSp500Data] = useState<Array<{date: string, percentReturn: number}>>([]);
+  const [sp500Data, setSp500Data] = useState<Array<{date: string, spyReturn: number, portfolioReturn: number}>>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
