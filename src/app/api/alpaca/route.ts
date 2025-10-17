@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { kv } from '@vercel/kv';
 
 // Alpaca API configuration for tradingbot account
 const ALPACA_CONFIG = {
@@ -7,9 +8,7 @@ const ALPACA_CONFIG = {
   secretKey: process.env.ALPACA_SECRET_KEY,
 };
 
-// In-memory cache for SPY data to ensure consistency
-let spyCache: { data: { bars: Array<{ t: string; c: number }> }, timestamp: number, key: string } | null = null;
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION_SECONDS = 3600; // 1 hour in seconds
 
 // Helper function to make authenticated requests to Alpaca
 async function alpacaRequest(endpoint: string) {
@@ -79,7 +78,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(orders);
 
       case 'spy-bars': {
-        // Get SPY historical bars from Twelve Data API
+        // Get SPY historical bars from Twelve Data API with Vercel KV caching
         const start = searchParams.get('start');
         const end = searchParams.get('end');
 
@@ -88,19 +87,21 @@ export async function GET(request: NextRequest) {
         }
 
         // Create cache key from date range
-        const cacheKey = `${start}-${end}`;
-        const now = Date.now();
-
-        // Check if we have valid cached data
-        if (spyCache && spyCache.key === cacheKey && (now - spyCache.timestamp) < CACHE_DURATION) {
-          console.log('📦 Returning cached SPY data');
-          return NextResponse.json(spyCache.data);
-        }
-
-        // Twelve Data API endpoint for time series (1hr intervals)
-        const twelveDataUrl = `https://api.twelvedata.com/time_series?symbol=SPY&interval=1h&start_date=${start.split('T')[0]}&end_date=${end.split('T')[0]}&apikey=3691150323a643eb828fb7bf156ea0e9&format=JSON`;
+        const cacheKey = `spy-bars:${start.split('T')[0]}:${end.split('T')[0]}`;
 
         try {
+          // Try to get cached data from Vercel KV
+          const cachedData = await kv.get<{ bars: Array<{ t: string; c: number }> }>(cacheKey);
+
+          if (cachedData) {
+            console.log('📦 Returning cached SPY data from Vercel KV');
+            return NextResponse.json(cachedData);
+          }
+
+          // Fetch fresh data from Twelve Data API
+          console.log('🌐 Fetching fresh SPY data from Twelve Data API');
+          const twelveDataUrl = `https://api.twelvedata.com/time_series?symbol=SPY&interval=1h&start_date=${start.split('T')[0]}&end_date=${end.split('T')[0]}&apikey=3691150323a643eb828fb7bf156ea0e9&format=JSON`;
+
           const response = await fetch(twelveDataUrl);
 
           if (!response.ok) {
@@ -118,15 +119,13 @@ export async function GET(request: NextRequest) {
               t: new Date(bar.datetime).toISOString(),
               c: parseFloat(bar.close),
             }));
-            console.log(`Twelve Data: Returning ${bars.length} SPY bars (cached for 5 min)`);
+            console.log(`Twelve Data: Returning ${bars.length} SPY bars`);
 
-            // Cache the response
             const responseData = { bars };
-            spyCache = {
-              data: responseData,
-              timestamp: now,
-              key: cacheKey
-            };
+
+            // Cache in Vercel KV with 1 hour expiration
+            await kv.set(cacheKey, responseData, { ex: CACHE_DURATION_SECONDS });
+            console.log(`✅ Cached SPY data in Vercel KV for 1 hour`);
 
             return NextResponse.json(responseData);
           }
@@ -134,7 +133,7 @@ export async function GET(request: NextRequest) {
           console.log('Twelve Data: No valid data returned');
           return NextResponse.json({ bars: null });
         } catch (error) {
-          console.error('Twelve Data fetch error:', error);
+          console.error('SPY bars fetch error:', error);
           return NextResponse.json({ bars: null }, { status: 200 });
         }
       }
