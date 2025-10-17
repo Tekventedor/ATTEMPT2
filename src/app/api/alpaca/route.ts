@@ -8,7 +8,7 @@ const ALPACA_CONFIG = {
 };
 
 // In-memory cache for SPY data to ensure consistency
-let spyCache: { data: any, timestamp: number, key: string } | null = null;
+let spyCache: { data: { bars: Array<{ t: string; c: number }> }, timestamp: number, key: string } | null = null;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 // Helper function to make authenticated requests to Alpaca
