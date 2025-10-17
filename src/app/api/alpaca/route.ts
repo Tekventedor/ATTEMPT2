@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(orders);
 
       case 'spy-bars': {
-        // Get SPY historical bars for S&P 500 comparison
+        // Get SPY historical bars from Twelve Data API
         const start = searchParams.get('start');
         const end = searchParams.get('end');
 
@@ -83,23 +83,37 @@ export async function GET(request: NextRequest) {
           return NextResponse.json({ error: 'Missing start or end date' }, { status: 400 });
         }
 
-        // Use Alpaca Data API v2 for market data (not trading API)
-        const dataApiUrl = 'https://data.alpaca.markets';
-        const response = await fetch(
-          `${dataApiUrl}/v2/stocks/SPY/bars?start=${start}&end=${end}&timeframe=1Hour`,
-          {
-            headers: {
-              'APCA-API-KEY-ID': ALPACA_CONFIG.apiKey!,
-              'APCA-API-SECRET-KEY': ALPACA_CONFIG.secretKey!,
-            },
+        // Twelve Data API endpoint for time series
+        const twelveDataUrl = `https://api.twelvedata.com/time_series?symbol=SPY&interval=1h&start_date=${start.split('T')[0]}&end_date=${end.split('T')[0]}&apikey=3691150323a643eb828fb7bf156ea0e9&format=JSON`;
+
+        try {
+          const response = await fetch(twelveDataUrl);
+
+          if (!response.ok) {
+            console.error('Twelve Data API error:', response.status, await response.text());
+            return NextResponse.json({ bars: null }, { status: 200 });
           }
-        );
 
-        if (!response.ok) {
-          throw new Error(`SPY bars API error: ${response.status} ${response.statusText}`);
+          const data = await response.json();
+
+          console.log('Twelve Data response:', JSON.stringify(data).substring(0, 500));
+
+          // Twelve Data returns: { values: [{ datetime: "2024-10-10 09:30:00", close: "573.45", ... }] }
+          if (data?.values && Array.isArray(data.values) && data.values.length > 0) {
+            const bars = data.values.reverse().map((bar: { datetime: string; close: string }) => ({
+              t: new Date(bar.datetime).toISOString(),
+              c: parseFloat(bar.close),
+            }));
+            console.log(`Twelve Data: Returning ${bars.length} SPY bars`);
+            return NextResponse.json({ bars });
+          }
+
+          console.log('Twelve Data: No valid data returned');
+          return NextResponse.json({ bars: null });
+        } catch (error) {
+          console.error('Twelve Data fetch error:', error);
+          return NextResponse.json({ bars: null }, { status: 200 });
         }
-
-        return NextResponse.json(await response.json());
       }
 
       default:

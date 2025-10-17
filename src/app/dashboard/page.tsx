@@ -189,41 +189,88 @@ export default function TradingDashboard() {
 
             return {
               date: format(date, 'MM/dd HH:mm'),
+              timestamp: item.timestamp, // Keep original timestamp
               value: item.value,
               pnl: index > 0 ? item.value - arr[index - 1].value : 0
             };
           });
         setPortfolioHistory(formattedHistory);
 
-        // Calculate S&P 500 benchmark comparison with realistic volatility
-        // Since Alpaca free tier may not have SPY data, we'll simulate realistic market behavior
-        // S&P 500 averages ~10% annually with daily/hourly volatility
+        // Fetch real S&P 500 data for comparison (with caching based on order count)
         if (formattedHistory.length > 0) {
+          // Get cached SPY data from localStorage
+          const cachedSPY = localStorage.getItem('spy_cache');
+          const cachedOrderCount = localStorage.getItem('spy_order_count');
+
+          // Only fetch new SPY data if order count changed (new trade occurred)
+          const currentOrderCount = ordersData?.length || 0;
+          const shouldRefreshSPY = !cachedSPY || !cachedOrderCount || parseInt(cachedOrderCount) !== currentOrderCount;
+
+          let spyBars = null;
+
+          if (shouldRefreshSPY) {
+            console.log('📊 Fetching fresh S&P 500 data (new trade detected or no cache)');
+            // Force start date to October 10, 2024
+            const startDate = new Date('2024-10-10T00:00:00Z');
+            const endDate = new Date(formattedHistory[formattedHistory.length - 1].timestamp);
+            const startISO = startDate.toISOString();
+            const endISO = endDate.toISOString();
+
+            // Fetch SPY data from Twelve Data
+            const spyResponse = await fetch(`/api/alpaca?endpoint=spy-bars&start=${startISO}&end=${endISO}`);
+
+            if (spyResponse.ok) {
+              const spyHistory = await spyResponse.json();
+              if (spyHistory && spyHistory.bars && Array.isArray(spyHistory.bars) && spyHistory.bars.length > 0) {
+                spyBars = spyHistory.bars;
+                // Cache the SPY data and current order count
+                localStorage.setItem('spy_cache', JSON.stringify(spyBars));
+                localStorage.setItem('spy_order_count', currentOrderCount.toString());
+              }
+            }
+          } else {
+            console.log('💾 Using cached S&P 500 data (no new trades)');
+            spyBars = JSON.parse(cachedSPY!);
+          }
+
+          // Calculate comparison data
           const initialPortfolioValue = formattedHistory[0].value;
+          let comparisonData = [];
 
-          // Simulate S&P 500 with realistic hourly volatility
-          let cumulativeSpyReturn = 0;
-          const comparisonData = formattedHistory.map((item, index) => {
-            // Base hourly growth: 10% annual = ~0.0011% per hour
-            const baseHourlyGrowth = 0.0011;
+          if (spyBars && spyBars.length > 0) {
+            // Find the SPY price at the SAME time as the portfolio starts (not Oct 10 00:00, but when portfolio actually started)
+            const firstPortfolioTimestamp = formattedHistory[0].timestamp;
+            const initialSpyBar = spyBars.reduce((prev: { t: string; c: number }, curr: { t: string; c: number }) => {
+              const prevDiff = Math.abs(new Date(prev.t).getTime() - firstPortfolioTimestamp);
+              const currDiff = Math.abs(new Date(curr.t).getTime() - firstPortfolioTimestamp);
+              return currDiff < prevDiff ? curr : prev;
+            });
+            const initialSpyPrice = initialSpyBar.c;
 
-            // Add realistic volatility: markets swing ±0.03% per hour on average
-            // This creates the zigzag pattern you see in real market data
-            const volatility = (Math.random() - 0.5) * 0.06; // Random between -0.03% and +0.03%
+            console.log('Portfolio starts at:', new Date(firstPortfolioTimestamp).toISOString());
+            console.log('Initial SPY price:', initialSpyPrice, 'at', initialSpyBar.t);
 
-            // Cumulative return with ups and downs (not just smooth growth)
-            cumulativeSpyReturn += (baseHourlyGrowth + volatility);
+            comparisonData = formattedHistory.map((item) => {
+              // Find closest SPY bar by timestamp (use actual timestamp, not formatted date string)
+              const itemTimestamp = item.timestamp;
+              const closestSpyBar = spyBars.reduce((prev: { t: string; c: number }, curr: { t: string; c: number }) => {
+                const prevDiff = Math.abs(new Date(prev.t).getTime() - itemTimestamp);
+                const currDiff = Math.abs(new Date(curr.t).getTime() - itemTimestamp);
+                return currDiff < prevDiff ? curr : prev;
+              });
 
-            const portfolioReturn = ((item.value - initialPortfolioValue) / initialPortfolioValue) * 100;
+              const spyReturn = ((closestSpyBar.c - initialSpyPrice) / initialSpyPrice) * 100;
+              const portfolioReturn = ((item.value - initialPortfolioValue) / initialPortfolioValue) * 100;
 
-            return {
-              date: item.date,
-              spyReturn: cumulativeSpyReturn,
-              portfolioReturn: portfolioReturn
-            };
-          });
+              return {
+                date: item.date,
+                spyReturn: spyReturn,
+                portfolioReturn: portfolioReturn
+              };
+            });
+          }
 
-          console.log('Comparison Data:', comparisonData); // Debug log
+          console.log('Comparison Data:', comparisonData);
           setSp500Data(comparisonData);
         }
       }
@@ -874,6 +921,13 @@ export default function TradingDashboard() {
                     color: '#F9FAFB'
                   }}
                   formatter={(value: number, name: string) => {
+                    console.log('Tooltip name:', name);
+                    if (name === 'AI Portfolio') {
+                      return [`${value >= 0 ? '+' : ''}${value.toFixed(2)}%`, 'AI Portfolio'];
+                    } else if (name === 'S&P 500 Index') {
+                      return [`${value >= 0 ? '+' : ''}${value.toFixed(2)}%`, 'S&P 500 Index'];
+                    }
+                    // Fallback based on dataKey
                     const displayName = name === 'portfolioReturn' ? 'AI Portfolio' : 'S&P 500 Index';
                     return [`${value >= 0 ? '+' : ''}${value.toFixed(2)}%`, displayName];
                   }}
@@ -892,7 +946,7 @@ export default function TradingDashboard() {
                   stroke="#22D3EE"
                   strokeWidth={3}
                   dot={false}
-                  name="S&P 500"
+                  name="S&P 500 Index"
                 />
               </LineChart>
             </ResponsiveContainer>

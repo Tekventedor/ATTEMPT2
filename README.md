@@ -61,11 +61,12 @@ TradingAIAgent/
 - Y-axis range: $90K - $110K
 - Buy/sell trade annotations with dotted lines
 
-### 5. **AI Performance vs. Market Benchmark**
-- Comparison chart showing AI returns vs. market baseline
+### 5. **AI Performance vs. S&P 500**
+- Comparison chart showing AI returns vs. S&P 500 index
 - Purple line: AI Portfolio percentage return
-- Cyan line: Market Benchmark (~10% annual growth)
+- Cyan line: S&P 500 Index (real market data)
 - Stats showing AI return, market return, and outperformance/underperformance
+- **Smart caching**: S&P 500 data is cached in browser localStorage and only refreshes when new trades occur (saves API quota)
 
 ### 6. **Agent Distribution**
 - Pie chart showing position allocation
@@ -86,6 +87,10 @@ Create `.env.local`:
 # Alpaca API (Paper Trading)
 ALPACA_API_KEY=your_alpaca_api_key
 ALPACA_SECRET_KEY=your_alpaca_secret_key
+
+# Twelve Data API (for S&P 500 historical data - free tier: 800 requests/day)
+# Get your free API key at: https://twelvedata.com/
+TWELVE_DATA_API_KEY=your_twelvedata_api_key
 ```
 
 ### 2. Install & Run
@@ -119,7 +124,7 @@ Proxy for Alpaca API calls.
 - `/api/alpaca?endpoint=positions` - Get current positions
 - `/api/alpaca?endpoint=orders` - Get order history
 - `/api/alpaca?endpoint=portfolio-history` - Portfolio history (1 week, hourly)
-- `/api/alpaca?endpoint=spy-bars&start={ISO_DATE}&end={ISO_DATE}` - S&P 500 historical data
+- `/api/alpaca?endpoint=spy-bars&start={ISO_DATE}&end={ISO_DATE}` - S&P 500 historical data (from Twelve Data API, cached on client)
 
 ## Development
 
