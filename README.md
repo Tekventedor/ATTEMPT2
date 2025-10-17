@@ -7,6 +7,7 @@ A public-facing trading dashboard that displays real-time data from an Alpaca pa
 - 🤖 **AI Trading Bot** - Automated trading with Flowhunt AI integration
 - 📊 **Real-Time Portfolio** - Live portfolio value, profit/loss, and market exposure
 - 📈 **Stock Performance Charts** - Multi-stock performance visualization with color-coded lines
+- 📉 **Market Benchmark Comparison** - AI returns vs. market baseline (~10% annual)
 - 💼 **Position Tracking** - Current holdings with live prices and unrealized P&L
 - 📝 **Activity Log** - Complete order history with compact view
 - 🔄 **Auto-Refresh** - Fetches real data from Alpaca every 5 minutes
@@ -58,12 +59,19 @@ TradingAIAgent/
 - Historical portfolio value over time
 - Max/Min/Avg legend
 - Y-axis range: $90K - $110K
+- Buy/sell trade annotations with dotted lines
 
-### 5. **Agent Distribution**
+### 5. **AI Performance vs. Market Benchmark**
+- Comparison chart showing AI returns vs. market baseline
+- Purple line: AI Portfolio percentage return
+- Cyan line: Market Benchmark (~10% annual growth)
+- Stats showing AI return, market return, and outperformance/underperformance
+
+### 6. **Agent Distribution**
 - Pie chart showing position allocation
 - Color-coded by stock ticker
 
-### 6. **Current Positions Table**
+### 7. **Current Positions Table**
 - Stock ticker symbols
 - Shares, avg buy price, current price
 - Total value and profit/loss ($ + %)
@@ -110,7 +118,8 @@ Proxy for Alpaca API calls.
 - `/api/alpaca?endpoint=account` - Get account info
 - `/api/alpaca?endpoint=positions` - Get current positions
 - `/api/alpaca?endpoint=orders` - Get order history
-- `/api/alpaca?endpoint=portfolio/history?period=1M&timeframe=1H` - Portfolio history
+- `/api/alpaca?endpoint=portfolio-history` - Portfolio history (1 week, hourly)
+- `/api/alpaca?endpoint=spy-bars&start={ISO_DATE}&end={ISO_DATE}` - S&P 500 historical data
 
 ## Development
 
