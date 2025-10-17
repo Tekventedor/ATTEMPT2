@@ -27,14 +27,11 @@ TradingAIAgent/
 ├── src/
 │   ├── app/
 │   │   ├── api/
-│   │   │   └── alpaca/route.ts              # Alpaca API proxy
-│   │   ├── dashboard/page.tsx               # Main dashboard UI (public)
-│   │   ├── page.tsx                         # Landing page (redirects to dashboard)
-│   │   └── page_with_supabase_auth.tsx.backup  # Archived auth page
-│   └── utils/
-│       └── supabaseClient.ts                # Supabase client (unused)
+│   │   │   └── alpaca/route.ts        # Alpaca API proxy
+│   │   ├── dashboard/page.tsx         # Main dashboard UI (public)
+│   │   └── page.tsx                   # Landing page (redirects to dashboard)
 ├── public/
-│   └── flowhunt-logo.svg                    # Flowhunt branding
+│   └── flowhunt-logo.svg              # Flowhunt branding
 └── package.json
 ```
 
@@ -81,10 +78,6 @@ Create `.env.local`:
 # Alpaca API (Paper Trading)
 ALPACA_API_KEY=your_alpaca_api_key
 ALPACA_SECRET_KEY=your_alpaca_secret_key
-
-# Supabase (optional, not currently used)
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
 ### 2. Install & Run
@@ -148,17 +141,10 @@ Auto-deploys on every push to `main`.
 
 ## Features Disabled
 
-The following features are currently disabled but preserved in code:
+The following features are currently disabled:
 
-- **Supabase Authentication** - Backup file: `page_with_supabase_auth.tsx.backup`
-- **Logout Button** - Commented out in dashboard
 - **Manual Refresh Button** - Commented out (auto-refresh still works)
 - **AI Decision Timeline** - Hidden with CSS class
-
-To re-enable authentication:
-1. Rename `page_with_supabase_auth.tsx.backup` to `page.tsx`
-2. Uncomment auth code in `dashboard/page.tsx` (lines 83-90)
-3. Uncomment logout button in dashboard header
 
 ## Color Palette
 
