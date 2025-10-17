@@ -7,6 +7,10 @@ const ALPACA_CONFIG = {
   secretKey: process.env.ALPACA_SECRET_KEY,
 };
 
+// In-memory cache for SPY data to ensure consistency
+let spyCache: { data: any, timestamp: number, key: string } | null = null;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 // Helper function to make authenticated requests to Alpaca
 async function alpacaRequest(endpoint: string) {
   if (!ALPACA_CONFIG.apiKey || !ALPACA_CONFIG.secretKey) {
@@ -83,6 +87,16 @@ export async function GET(request: NextRequest) {
           return NextResponse.json({ error: 'Missing start or end date' }, { status: 400 });
         }
 
+        // Create cache key from date range
+        const cacheKey = `${start}-${end}`;
+        const now = Date.now();
+
+        // Check if we have valid cached data
+        if (spyCache && spyCache.key === cacheKey && (now - spyCache.timestamp) < CACHE_DURATION) {
+          console.log('📦 Returning cached SPY data');
+          return NextResponse.json(spyCache.data);
+        }
+
         // Twelve Data API endpoint for time series (1hr intervals)
         const twelveDataUrl = `https://api.twelvedata.com/time_series?symbol=SPY&interval=1h&start_date=${start.split('T')[0]}&end_date=${end.split('T')[0]}&apikey=3691150323a643eb828fb7bf156ea0e9&format=JSON`;
 
@@ -104,8 +118,17 @@ export async function GET(request: NextRequest) {
               t: new Date(bar.datetime).toISOString(),
               c: parseFloat(bar.close),
             }));
-            console.log(`Twelve Data: Returning ${bars.length} SPY bars`);
-            return NextResponse.json({ bars });
+            console.log(`Twelve Data: Returning ${bars.length} SPY bars (cached for 5 min)`);
+
+            // Cache the response
+            const responseData = { bars };
+            spyCache = {
+              data: responseData,
+              timestamp: now,
+              key: cacheKey
+            };
+
+            return NextResponse.json(responseData);
           }
 
           console.log('Twelve Data: No valid data returned');
