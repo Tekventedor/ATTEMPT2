@@ -73,7 +73,35 @@ export async function GET(request: NextRequest) {
         // Get recent orders from tradingbot account
         const orders = await alpacaRequest('/v2/orders?status=all&limit=50&direction=desc');
         return NextResponse.json(orders);
-      
+
+      case 'spy-bars': {
+        // Get SPY historical bars for S&P 500 comparison
+        const start = searchParams.get('start');
+        const end = searchParams.get('end');
+
+        if (!start || !end) {
+          return NextResponse.json({ error: 'Missing start or end date' }, { status: 400 });
+        }
+
+        // Use Alpaca Data API v2 for market data (not trading API)
+        const dataApiUrl = 'https://data.alpaca.markets';
+        const response = await fetch(
+          `${dataApiUrl}/v2/stocks/SPY/bars?start=${start}&end=${end}&timeframe=1Hour`,
+          {
+            headers: {
+              'APCA-API-KEY-ID': ALPACA_CONFIG.apiKey!,
+              'APCA-API-SECRET-KEY': ALPACA_CONFIG.secretKey!,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`SPY bars API error: ${response.status} ${response.statusText}`);
+        }
+
+        return NextResponse.json(await response.json());
+      }
+
       default:
         return NextResponse.json({ error: 'Invalid endpoint' }, { status: 400 });
     }

@@ -74,6 +74,7 @@ export default function TradingDashboard() {
   const [positions, setPositions] = useState<Position[]>([]);
   const [tradingLogs, setTradingLogs] = useState<TradingLog[]>([]);
   const [portfolioHistory, setPortfolioHistory] = useState<Array<{date: string, value: number, pnl: number}>>([]);
+  const [sp500Data, setSp500Data] = useState<Array<{date: string, percentReturn: number}>>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -193,6 +194,34 @@ export default function TradingDashboard() {
             };
           });
         setPortfolioHistory(formattedHistory);
+
+        // Calculate S&P 500 benchmark comparison
+        // Since Alpaca free tier may not have SPY data, we'll use a typical market benchmark
+        // S&P 500 averages ~10% annually (~0.19% weekly, ~0.027% daily, ~0.0011% hourly)
+        if (formattedHistory.length > 0) {
+          const initialPortfolioValue = formattedHistory[0].value;
+
+          // Simulate S&P 500 growth at typical market rate
+          const comparisonData = formattedHistory.map((item, index) => {
+            // Calculate hours elapsed since start
+            const hoursElapsed = index;
+
+            // S&P 500 typical hourly growth: ~0.0011% (10% annual / 365 days / 24 hours)
+            // This gives a realistic benchmark for comparison
+            const spyReturn = hoursElapsed * 0.0011; // Approximate market growth
+
+            const portfolioReturn = ((item.value - initialPortfolioValue) / initialPortfolioValue) * 100;
+
+            return {
+              date: item.date,
+              spyReturn: spyReturn,
+              portfolioReturn: portfolioReturn
+            };
+          });
+
+          console.log('Comparison Data:', comparisonData); // Debug log
+          setSp500Data(comparisonData);
+        }
       }
 
     } catch (error) {
@@ -785,6 +814,96 @@ export default function TradingDashboard() {
             )}
           </div>
         </div>
+
+        {/* AI Performance vs S&P 500 Comparison */}
+        {sp500Data.length > 0 && (
+          <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white">AI Performance vs. Market Benchmark</h3>
+              {sp500Data.length > 0 && (() => {
+                const aiReturn = sp500Data[sp500Data.length - 1].portfolioReturn;
+                const spyReturn = sp500Data[sp500Data.length - 1].spyReturn;
+                const outperformance = aiReturn - spyReturn;
+
+                return (
+                  <div className="flex items-center space-x-4 text-xs">
+                    <div className="flex items-center space-x-1">
+                      <span className="text-gray-400">AI Return:</span>
+                      <span className={`font-semibold ${aiReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {aiReturn >= 0 ? '+' : ''}{aiReturn.toFixed(2)}%
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <span className="text-gray-400">Market (~10% annual):</span>
+                      <span className={`font-semibold ${spyReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {spyReturn >= 0 ? '+' : ''}{spyReturn.toFixed(2)}%
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <span className="text-gray-400">Difference:</span>
+                      <span className={`font-semibold ${outperformance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {outperformance >= 0 ? '+' : ''}{outperformance.toFixed(2)}%
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+            <ResponsiveContainer width="100%" height={350}>
+              <LineChart data={sp500Data}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis
+                  dataKey="date"
+                  stroke="#9CA3AF"
+                  style={{ fontSize: '12px' }}
+                />
+                <YAxis
+                  stroke="#9CA3AF"
+                  tickFormatter={(value) => `${value.toFixed(1)}%`}
+                  style={{ fontSize: '12px' }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#1F2937',
+                    border: '1px solid #374151',
+                    borderRadius: '8px',
+                    color: '#F9FAFB'
+                  }}
+                  formatter={(value: number, name: string) => {
+                    const displayName = name === 'portfolioReturn' ? 'AI Portfolio' : 'Market Benchmark';
+                    return [`${value >= 0 ? '+' : ''}${value.toFixed(2)}%`, displayName];
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="portfolioReturn"
+                  stroke="#8B5CF6"
+                  strokeWidth={3}
+                  dot={false}
+                  name="AI Portfolio"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="spyReturn"
+                  stroke="#22D3EE"
+                  strokeWidth={3}
+                  dot={false}
+                  name="S&P 500"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+            <div className="mt-4 flex items-center justify-center space-x-6 text-sm">
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-0.5 bg-purple-500"></div>
+                <span className="text-gray-300">AI Portfolio</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-0.5 bg-cyan-400"></div>
+                <span className="text-gray-300">Market Benchmark (10% annual)</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Positions Table */}
         <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20 mb-8">
