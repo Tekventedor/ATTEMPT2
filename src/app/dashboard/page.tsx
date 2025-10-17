@@ -80,13 +80,14 @@ export default function TradingDashboard() {
 
   useEffect(() => {
     const init = async () => {
-      const { data } = await supabase.auth.getSession();
-      const session = data.session;
-      if (!session) {
-        router.replace("/");
-        return;
-      }
-      setEmail(session.user.email ?? null);
+      // Authentication disabled for public viewing
+      // const { data } = await supabase.auth.getSession();
+      // const session = data.session;
+      // if (!session) {
+      //   router.replace("/");
+      //   return;
+      // }
+      // setEmail(session.user.email ?? null);
 
       // Load dashboard data directly from Alpaca
       await loadDashboardData();
@@ -232,16 +233,16 @@ export default function TradingDashboard() {
     ? (investedAmount / account.portfolio_value) * 100
     : 0;
 
-  // Define agent color palette (matches position distribution)
-  const AGENT_COLORS: Record<string, string> = {
-    'AAPL': '#8b5cf6',  // Purple
-    'TSLA': '#22d3ee',  // Cyan
-    'NVDA': '#f59e0b',  // Amber
-    'MSFT': '#10b981',  // Green
-    'GOOGL': '#ef4444', // Red
-  };
+  // Define agent color palette with more unique colors
+  const COLORS = ['#8b5cf6', '#22d3ee', '#f59e0b', '#10b981', '#ef4444', '#ec4899', '#6366f1', '#14b8a6', '#f97316', '#a855f7'];
 
-  const COLORS = ['#8b5cf6', '#22d3ee', '#f59e0b', '#10b981', '#ef4444'];
+  // Assign colors dynamically to avoid repeats
+  const AGENT_COLORS: Record<string, string> = {};
+  positions.forEach((pos, index) => {
+    if (pos.symbol && !AGENT_COLORS[pos.symbol]) {
+      AGENT_COLORS[pos.symbol] = COLORS[index % COLORS.length];
+    }
+  });
 
   // Calculate agent performance history
   const agentPerformanceHistory = portfolioHistory.map((point, index) => {
@@ -279,24 +280,25 @@ export default function TradingDashboard() {
                 <img src="/flowhunt-logo.svg" alt="Flowhunt Logo" className="w-6 h-6" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-white">AI Trading with Flowhunt</h1>
+                <h1 className="text-2xl font-bold text-white">Flowhunt AI Trading Bot</h1>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <button 
+            {/* Buttons hidden for public viewing */}
+            {/* <div className="flex items-center space-x-4">
+              <button
                 onClick={handleRefresh}
                 disabled={refreshing}
                 className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
               >
                 <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
-              <button 
+              <button
                 onClick={handleLogout}
                 className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
               >
                 <LogOut className="w-4 h-4" />
               </button>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
@@ -442,109 +444,49 @@ export default function TradingDashboard() {
               <h3 className="text-lg font-semibold text-white">AI Insights & Activity Log</h3>
             </div>
 
-            <div className="space-y-4">
-              {/* AI Commentary Summary */}
-              <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 rounded-lg p-4 border border-purple-500/20">
-                <div className="flex items-start space-x-2">
-                  <AlertCircle className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm text-gray-200 leading-relaxed">
-                    {(() => {
-                      const recentBuy = tradingLogs.find(log => log.action === 'BUY');
-                      const topGainer = positions
-                        .filter(pos => pos.unrealized_pnl && pos.unrealized_pnl > 0)
-                        .sort((a, b) => (b.unrealized_pnl || 0) - (a.unrealized_pnl || 0))[0];
-                      const topLoser = positions
-                        .filter(pos => pos.unrealized_pnl && pos.unrealized_pnl < 0)
-                        .sort((a, b) => (a.unrealized_pnl || 0) - (b.unrealized_pnl || 0))[0];
-
-                      let commentary = '';
-
-                      if (recentBuy) {
-                        const date = new Date(recentBuy.timestamp);
-                        const companyName = recentBuy.symbol === 'AUST' ? 'Austin Gold Corp.' :
-                                           recentBuy.symbol === 'CDE' ? 'Coeur Mining' :
-                                           recentBuy.symbol === 'LMND' ? 'Lemonade' :
-                                           recentBuy.symbol;
-                        commentary += `Recent ${recentBuy.action?.toLowerCase()}: ${companyName} on ${format(date, 'MMM dd')}. `;
-                      }
-
-                      if (topGainer) {
-                        const pnlPercent = topGainer.average_price
-                          ? (((topGainer.current_price || 0) - topGainer.average_price) / topGainer.average_price * 100)
-                          : 0;
-                        commentary += `${topGainer.symbol} is up +${pnlPercent.toFixed(1)}%. `;
-                      }
-
-                      if (topLoser) {
-                        const pnlPercent = topLoser.average_price
-                          ? (((topLoser.current_price || 0) - topLoser.average_price) / topLoser.average_price * 100)
-                          : 0;
-                        commentary += `${topLoser.symbol} down ${pnlPercent.toFixed(1)}%.`;
-                      }
-
-                      return commentary || 'Monitoring market conditions. No recent trades.';
-                    })()}
-                  </div>
-                </div>
-              </div>
-
-              {/* Activity Log */}
-              <div>
-                <h4 className="text-sm font-semibold text-gray-300 mb-3">Recent Activity</h4>
-                <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                  {tradingLogs.slice(0, 10).map((log) => {
-                    const companyName = log.symbol === 'AUST' ? 'Austin Gold Corp.' :
-                                       log.symbol === 'CDE' ? 'Coeur Mining, Inc.' :
-                                       log.symbol === 'LMND' ? 'Lemonade, Inc.' :
-                                       log.symbol;
-
-                    return (
-                      <div key={log.id} className="bg-white/5 rounded-lg p-3 border border-white/10 hover:bg-white/10 transition-colors">
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center space-x-2">
-                            {log.action === 'BUY' ? (
-                              <TrendingUp className="w-4 h-4 text-green-400 flex-shrink-0" />
-                            ) : log.action === 'SELL' ? (
-                              <TrendingDown className="w-4 h-4 text-red-400 flex-shrink-0" />
-                            ) : (
-                              <Activity className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                            )}
-                            <span className={`text-xs font-semibold ${
-                              log.action === 'BUY' ? 'text-green-400' :
-                              log.action === 'SELL' ? 'text-red-400' :
-                              'text-gray-400'
-                            }`}>
-                              {log.action}
-                            </span>
-                            <span className="text-xs text-gray-400">
-                              {format(new Date(log.timestamp), 'MMM dd, HH:mm')}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <div className="text-sm font-medium text-white">{companyName}</div>
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-gray-400">{log.quantity} shares @ ${log.price?.toFixed(2) || 'N/A'}</span>
-                            <span className="text-gray-300 font-medium">${log.total_value?.toLocaleString() || 'N/A'}</span>
-                          </div>
-                        </div>
+            {/* Activity Log */}
+            <div className="space-y-1.5 max-h-[500px] overflow-y-auto">
+              {tradingLogs.slice(0, 20).map((log) => {
+                return (
+                  <div key={log.id} className="bg-white/5 rounded-lg p-2 border border-white/10 hover:bg-white/10 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        {log.action === 'BUY' ? (
+                          <TrendingUp className="w-3 h-3 text-green-400 flex-shrink-0" />
+                        ) : log.action === 'SELL' ? (
+                          <TrendingDown className="w-3 h-3 text-red-400 flex-shrink-0" />
+                        ) : (
+                          <Activity className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                        )}
+                        <span className={`text-xs font-semibold ${
+                          log.action === 'BUY' ? 'text-green-400' :
+                          log.action === 'SELL' ? 'text-red-400' :
+                          'text-gray-400'
+                        }`}>
+                          {log.action}
+                        </span>
+                        <span className="text-xs text-white">{log.symbol}</span>
                       </div>
-                    );
-                  })}
-                  {tradingLogs.length === 0 && (
-                    <div className="text-center py-8 text-gray-400">
-                      <Activity className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-xs">No activity yet</p>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs text-gray-400">{log.quantity} @ ${log.price?.toFixed(2)}</span>
+                        <span className="text-xs text-gray-300 font-medium">${log.total_value?.toLocaleString()}</span>
+                      </div>
                     </div>
-                  )}
+                  </div>
+                );
+              })}
+              {tradingLogs.length === 0 && (
+                <div className="text-center py-8 text-gray-400">
+                  <Activity className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-xs">No activity yet</p>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* AI Decision Timeline */}
-        <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20 mb-8">
+        <div className="hidden bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20 mb-8">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-2">
               <Activity className="w-5 h-5 text-purple-400" />
@@ -670,7 +612,32 @@ export default function TradingDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Portfolio Value History */}
           <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20">
-            <h3 className="text-lg font-semibold text-white mb-4">Portfolio Value</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white">Portfolio Value</h3>
+              {portfolioHistory.length > 0 && (() => {
+                const values = portfolioHistory.map(h => h.value);
+                const max = Math.max(...values);
+                const min = Math.min(...values);
+                const avg = values.reduce((a, b) => a + b, 0) / values.length;
+
+                return (
+                  <div className="flex items-center space-x-3 text-xs">
+                    <div className="flex items-center space-x-1">
+                      <span className="text-gray-400">Max:</span>
+                      <span className="text-green-400 font-semibold">${max.toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <span className="text-gray-400">Min:</span>
+                      <span className="text-red-400 font-semibold">${min.toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <span className="text-gray-400">Avg:</span>
+                      <span className="text-blue-400 font-semibold">${avg.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={portfolioHistory}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -783,14 +750,8 @@ export default function TradingDashboard() {
                               className="w-2 h-2 rounded-full flex-shrink-0"
                               style={{ backgroundColor: AGENT_COLORS[position.symbol || ''] || '#8884d8' }}
                             ></div>
-                            <div>
-                              <div className="font-medium">
-                                {position.symbol === 'AUST' ? 'Austin Gold Corp.' :
-                                 position.symbol === 'CDE' ? 'Coeur Mining, Inc.' :
-                                 position.symbol === 'LMND' ? 'Lemonade, Inc.' :
-                                 position.symbol || '-'}
-                              </div>
-                              <div className="text-xs text-gray-400">{position.symbol}</div>
+                            <div className="font-medium">
+                              {position.symbol || '-'}
                             </div>
                           </div>
                         </td>
