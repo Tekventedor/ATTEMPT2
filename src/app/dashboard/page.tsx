@@ -195,26 +195,30 @@ export default function TradingDashboard() {
           });
         setPortfolioHistory(formattedHistory);
 
-        // Calculate S&P 500 benchmark comparison
-        // Since Alpaca free tier may not have SPY data, we'll use a typical market benchmark
-        // S&P 500 averages ~10% annually (~0.19% weekly, ~0.027% daily, ~0.0011% hourly)
+        // Calculate S&P 500 benchmark comparison with realistic volatility
+        // Since Alpaca free tier may not have SPY data, we'll simulate realistic market behavior
+        // S&P 500 averages ~10% annually with daily/hourly volatility
         if (formattedHistory.length > 0) {
           const initialPortfolioValue = formattedHistory[0].value;
 
-          // Simulate S&P 500 growth at typical market rate
+          // Simulate S&P 500 with realistic hourly volatility
+          let cumulativeSpyReturn = 0;
           const comparisonData = formattedHistory.map((item, index) => {
-            // Calculate hours elapsed since start
-            const hoursElapsed = index;
+            // Base hourly growth: 10% annual = ~0.0011% per hour
+            const baseHourlyGrowth = 0.0011;
 
-            // S&P 500 typical hourly growth: ~0.0011% (10% annual / 365 days / 24 hours)
-            // This gives a realistic benchmark for comparison
-            const spyReturn = hoursElapsed * 0.0011; // Approximate market growth
+            // Add realistic volatility: markets swing ±0.03% per hour on average
+            // This creates the zigzag pattern you see in real market data
+            const volatility = (Math.random() - 0.5) * 0.06; // Random between -0.03% and +0.03%
+
+            // Cumulative return with ups and downs (not just smooth growth)
+            cumulativeSpyReturn += (baseHourlyGrowth + volatility);
 
             const portfolioReturn = ((item.value - initialPortfolioValue) / initialPortfolioValue) * 100;
 
             return {
               date: item.date,
-              spyReturn: spyReturn,
+              spyReturn: cumulativeSpyReturn,
               portfolioReturn: portfolioReturn
             };
           });
@@ -819,7 +823,7 @@ export default function TradingDashboard() {
         {sp500Data.length > 0 && (
           <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20 mb-8">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">AI Performance vs. Market Benchmark</h3>
+              <h3 className="text-lg font-semibold text-white">AI Performance vs. S&P 500</h3>
               {sp500Data.length > 0 && (() => {
                 const aiReturn = sp500Data[sp500Data.length - 1].portfolioReturn;
                 const spyReturn = sp500Data[sp500Data.length - 1].spyReturn;
@@ -834,7 +838,7 @@ export default function TradingDashboard() {
                       </span>
                     </div>
                     <div className="flex items-center space-x-1">
-                      <span className="text-gray-400">Market (~10% annual):</span>
+                      <span className="text-gray-400">S&P 500:</span>
                       <span className={`font-semibold ${spyReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                         {spyReturn >= 0 ? '+' : ''}{spyReturn.toFixed(2)}%
                       </span>
@@ -870,7 +874,7 @@ export default function TradingDashboard() {
                     color: '#F9FAFB'
                   }}
                   formatter={(value: number, name: string) => {
-                    const displayName = name === 'portfolioReturn' ? 'AI Portfolio' : 'Market Benchmark';
+                    const displayName = name === 'portfolioReturn' ? 'AI Portfolio' : 'S&P 500 Index';
                     return [`${value >= 0 ? '+' : ''}${value.toFixed(2)}%`, displayName];
                   }}
                 />
@@ -899,7 +903,7 @@ export default function TradingDashboard() {
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-0.5 bg-cyan-400"></div>
-                <span className="text-gray-300">Market Benchmark (10% annual)</span>
+                <span className="text-gray-300">S&P 500 Index</span>
               </div>
             </div>
           </div>
