@@ -682,7 +682,7 @@ export default function TradingDashboard() {
                               </p>
                               {tradesAtTime.map((trade) => (
                                 <div key={trade.id} className={`text-xs mb-1 ${trade.action === 'BUY' ? 'text-green-400' : 'text-red-400'}`}>
-                                  <span className="font-bold">{trade.action}</span> {trade.symbol} - {trade.quantity} shares @ ${trade.price?.toFixed(2)}
+                                  <span className="font-bold">{format(new Date(trade.timestamp), 'HH:mm')}</span> - <span className="font-bold">{trade.action}</span> {trade.symbol} - {trade.quantity} shares @ ${trade.price?.toFixed(2)}
                                   <span className="text-gray-400 ml-1">(${trade.total_value?.toLocaleString()})</span>
                                 </div>
                               ))}
