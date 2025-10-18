@@ -1044,10 +1044,10 @@ export default function TradingDashboard() {
                         <div className="bg-gray-800 border border-gray-600 rounded-lg p-3 shadow-lg">
                           <p className="text-gray-300 text-sm mb-1 font-medium">{label}</p>
                           <p className="text-purple-400 font-semibold text-base mb-1">
-                            AI: {(payload[0]?.value ?? 0) >= 0 ? '+' : ''}{(payload[0]?.value ?? 0).toFixed(2)}%
+                            AI: {Number(payload[0]?.value ?? 0) >= 0 ? '+' : ''}{Number(payload[0]?.value ?? 0).toFixed(2)}%
                           </p>
                           <p className="text-cyan-400 font-semibold text-base mb-2">
-                            S&P 500: {(payload[1]?.value ?? 0) >= 0 ? '+' : ''}{(payload[1]?.value ?? 0).toFixed(2)}%
+                            S&P 500: {Number(payload[1]?.value ?? 0) >= 0 ? '+' : ''}{Number(payload[1]?.value ?? 0).toFixed(2)}%
                           </p>
                           {tradesAtTime.length > 0 && (
                             <div className="mt-2 pt-2 border-t border-gray-600">
