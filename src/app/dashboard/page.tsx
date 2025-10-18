@@ -1039,6 +1039,36 @@ export default function TradingDashboard() {
                     return [`${value >= 0 ? '+' : ''}${value.toFixed(2)}%`, displayName];
                   }}
                 />
+                {/* Trade Annotations - Vertical lines for buy/sell events */}
+                {tradingLogs.filter(log => log.timestamp).map((log) => {
+                  // Round timestamp to nearest hour to match sp500Data format
+                  const tradeTime = new Date(log.timestamp);
+                  tradeTime.setMinutes(0);
+                  tradeTime.setSeconds(0);
+                  tradeTime.setMilliseconds(0);
+                  const tradeDate = format(tradeTime, 'MM/dd HH:mm');
+                  const isBuy = log.action === 'BUY';
+
+                  // Check if this timestamp exists in sp500Data
+                  const existsInData = sp500Data.some(h => h.date === tradeDate);
+                  if (!existsInData) return null;
+
+                  return (
+                    <ReferenceLine
+                      key={log.id}
+                      x={tradeDate}
+                      stroke={isBuy ? '#10b981' : '#ef4444'}
+                      strokeWidth={2}
+                      strokeDasharray="3 3"
+                      label={{
+                        value: isBuy ? '▲' : '▼',
+                        position: 'top',
+                        fill: isBuy ? '#10b981' : '#ef4444',
+                        fontSize: 14,
+                      }}
+                    />
+                  );
+                })}
                 <Line
                   type="monotone"
                   dataKey="portfolioReturn"
