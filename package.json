@@ -6,13 +6,18 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "build:bundle": "tsx scripts/build-dashboard-bundle.ts",
+    "export:hugo": "tsx scripts/export-to-hugo.ts",
+    "hugo:update": "npm run export:hugo",
+    "preview:hugo": "npx serve hugo-export/static/trading-dashboard -p 3001"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.0.0",
     "@supabase/supabase-js": "^2.58.0",
     "@vercel/kv": "^3.0.0",
     "date-fns": "^3.6.0",
+    "dotenv": "^16.4.5",
     "lucide-react": "^0.400.0",
     "next": "15.5.4",
     "react": "19.1.0",
@@ -20,14 +25,19 @@
     "recharts": "^2.12.7"
   },
   "devDependencies": {
+    "@babel/core": "^7.28.4",
+    "@babel/preset-react": "^7.27.1",
+    "@babel/preset-typescript": "^7.27.1",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "esbuild": "^0.25.11",
     "eslint": "^9",
     "eslint-config-next": "15.5.4",
     "tailwindcss": "^4",
+    "tsx": "^4.7.0",
     "typescript": "^5"
   }
 }
