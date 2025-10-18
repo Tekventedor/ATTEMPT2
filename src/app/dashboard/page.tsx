@@ -1027,16 +1027,45 @@ export default function TradingDashboard() {
                     borderRadius: '8px',
                     color: '#F9FAFB'
                   }}
-                  formatter={(value: number, name: string) => {
-                    console.log('Tooltip name:', name);
-                    if (name === 'AI Portfolio') {
-                      return [`${value >= 0 ? '+' : ''}${value.toFixed(2)}%`, 'AI Portfolio'];
-                    } else if (name === 'S&P 500 Index') {
-                      return [`${value >= 0 ? '+' : ''}${value.toFixed(2)}%`, 'S&P 500 Index'];
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      // Find trades that occurred in this hour
+                      const tradesAtTime = tradingLogs.filter(log => {
+                        if (!log.timestamp) return false;
+                        const tradeTime = new Date(log.timestamp);
+                        tradeTime.setMinutes(0);
+                        tradeTime.setSeconds(0);
+                        tradeTime.setMilliseconds(0);
+                        const tradeDate = format(tradeTime, 'MM/dd HH:mm');
+                        return tradeDate === label;
+                      });
+
+                      return (
+                        <div className="bg-gray-800 border border-gray-600 rounded-lg p-3 shadow-lg">
+                          <p className="text-gray-300 text-sm mb-1 font-medium">{label}</p>
+                          <p className="text-purple-400 font-semibold text-base mb-1">
+                            AI: {payload[0]?.value >= 0 ? '+' : ''}{(payload[0]?.value ?? 0).toFixed(2)}%
+                          </p>
+                          <p className="text-cyan-400 font-semibold text-base mb-2">
+                            S&P 500: {payload[1]?.value >= 0 ? '+' : ''}{(payload[1]?.value ?? 0).toFixed(2)}%
+                          </p>
+                          {tradesAtTime.length > 0 && (
+                            <div className="mt-2 pt-2 border-t border-gray-600">
+                              <p className="text-xs text-gray-400 mb-2 font-semibold">
+                                {tradesAtTime.length} Trade{tradesAtTime.length > 1 ? 's' : ''} in this hour:
+                              </p>
+                              {tradesAtTime.map((trade) => (
+                                <div key={trade.id} className={`text-xs mb-1 ${trade.action === 'BUY' ? 'text-green-400' : 'text-red-400'}`}>
+                                  <span className="font-bold">{format(new Date(trade.timestamp), 'HH:mm')}</span> - <span className="font-bold">{trade.action}</span> {trade.symbol} - {trade.quantity} shares @ ${trade.price?.toFixed(2)}
+                                  <span className="text-gray-400 ml-1">(${trade.total_value?.toLocaleString()})</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
                     }
-                    // Fallback based on dataKey
-                    const displayName = name === 'portfolioReturn' ? 'AI Portfolio' : 'S&P 500 Index';
-                    return [`${value >= 0 ? '+' : ''}${value.toFixed(2)}%`, displayName];
+                    return null;
                   }}
                 />
                 {/* Trade Annotations - Vertical lines for buy/sell events */}
