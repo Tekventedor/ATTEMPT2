@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
 
           // Fetch fresh data from Twelve Data API
           console.log('🌐 Fetching fresh SPY data from Twelve Data API');
-          const twelveDataUrl = `https://api.twelvedata.com/time_series?symbol=SPY&interval=1h&start_date=${start.split('T')[0]}&end_date=${end.split('T')[0]}&apikey=3691150323a643eb828fb7bf156ea0e9&format=JSON`;
+          const twelveDataUrl = `https://api.twelvedata.com/time_series?symbol=SPY&interval=1h&start_date=${start.split('T')[0]}&end_date=${end.split('T')[0]}&apikey=${process.env.TWELVE_DATA_API_KEY}&format=JSON`;
 
           const response = await fetch(twelveDataUrl);
 

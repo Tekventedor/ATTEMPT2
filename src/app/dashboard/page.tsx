@@ -77,8 +77,16 @@ export default function TradingDashboard() {
   const [sp500Data, setSp500Data] = useState<Array<{date: string, spyReturn: number, portfolioReturn: number}>>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Handle client-side mounting
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
+    if (!mounted) return;
+
     const init = async () => {
       // Authentication disabled for public viewing
       // const { data } = await supabase.auth.getSession();
@@ -102,7 +110,7 @@ export default function TradingDashboard() {
       return () => clearInterval(intervalId);
     };
     void init();
-  }, [router]);
+  }, [router, mounted]);
 
   const loadDashboardData = async () => {
     try {
@@ -111,6 +119,7 @@ export default function TradingDashboard() {
       // Load account data directly from Alpaca
       const accountData = await fetchAlpacaData('account');
       if (accountData) {
+        console.log('💰 Account API portfolio_value:', accountData.portfolio_value);
         setAccount(accountData);
       }
 
@@ -155,11 +164,14 @@ export default function TradingDashboard() {
       // Load portfolio history directly from Alpaca
       const history = await fetchAlpacaData('portfolio-history');
       if (history && history.equity && Array.isArray(history.equity) && history.timestamp && Array.isArray(history.timestamp)) {
+        console.log('📊 Raw Alpaca equity data (first 5):', history.equity.slice(0, 5));
+        console.log('📊 Raw Alpaca equity data (last 5):', history.equity.slice(-5));
+
         // Filter out zero/negative equity and format hourly data
         const filteredHistory = history.equity
           .map((value: number, index: number) => ({
             timestamp: history.timestamp[index] * 1000, // Convert to milliseconds
-            value: Math.abs(value), // Use absolute value to handle negative equity from Alpaca
+            value: value, // Keep actual value - don't use Math.abs()
           }))
           .filter((item: { timestamp: number; value: number }) => item.value > 1000); // Only show meaningful values
 
@@ -194,6 +206,7 @@ export default function TradingDashboard() {
               pnl: index > 0 ? item.value - arr[index - 1].value : 0
             };
           });
+        console.log('📈 Portfolio History current value:', formattedHistory.length > 0 ? formattedHistory[formattedHistory.length - 1].value : 'N/A');
         setPortfolioHistory(formattedHistory);
 
         // Fetch real S&P 500 data for comparison with smart caching
@@ -205,10 +218,10 @@ export default function TradingDashboard() {
           const currentOrderCount = ordersData?.length || 0;
           const currentDate = new Date().toDateString(); // Just the date, not time
 
-          // Check cache validity
-          const cachedSpyData = localStorage.getItem('spy_cache');
-          const cachedDate = localStorage.getItem('spy_cache_date');
-          const cachedOrderCount = localStorage.getItem('spy_order_count');
+          // Check cache validity (only on client-side)
+          const cachedSpyData = typeof window !== 'undefined' ? localStorage.getItem('spy_cache') : null;
+          const cachedDate = typeof window !== 'undefined' ? localStorage.getItem('spy_cache_date') : null;
+          const cachedOrderCount = typeof window !== 'undefined' ? localStorage.getItem('spy_order_count') : null;
 
           // Determine if we need to fetch fresh SPY data
           if (!cachedSpyData || !cachedDate || !cachedOrderCount) {
@@ -244,11 +257,13 @@ export default function TradingDashboard() {
             if (spyHistory && spyHistory.bars && Array.isArray(spyHistory.bars) && spyHistory.bars.length > 0) {
               spyBars = spyHistory.bars;
 
-              // Cache the SPY data
-              localStorage.setItem('spy_cache', JSON.stringify(spyBars));
-              localStorage.setItem('spy_cache_date', currentDate);
-              localStorage.setItem('spy_order_count', currentOrderCount.toString());
-              console.log('💾 Cached SPY data for', currentDate, 'with', currentOrderCount, 'orders');
+              // Cache the SPY data (only on client-side)
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('spy_cache', JSON.stringify(spyBars));
+                localStorage.setItem('spy_cache_date', currentDate);
+                localStorage.setItem('spy_order_count', currentOrderCount.toString());
+                console.log('💾 Cached SPY data for', currentDate, 'with', currentOrderCount, 'orders');
+              }
             }
           }
           } // End of shouldFetchSpy block
@@ -290,7 +305,8 @@ export default function TradingDashboard() {
             console.log('Total SPY bars received:', spyBars.length);
 
             // Use portfolio timestamps as the base (matches your portfolio data points)
-            comparisonData = formattedHistory.map((item, index) => {
+            // But only include points where we have actual SPY data (not reused bars)
+            const rawComparisonData = formattedHistory.map((item, index) => {
               const itemTimestamp = item.timestamp;
 
               // Find SPY bar at or before this timestamp (prefer exact match or most recent before)
@@ -309,22 +325,50 @@ export default function TradingDashboard() {
               const spyReturn = ((closestSpyBar.c - initialSpyPrice) / initialSpyPrice) * 100;
               const portfolioReturn = ((item.value - initialPortfolioValue) / initialPortfolioValue) * 100;
 
+              // Calculate time difference between portfolio timestamp and SPY bar timestamp
+              const timeDiff = Math.abs(itemTimestamp - new Date(closestSpyBar.t).getTime());
+              const hoursDiff = timeDiff / (1000 * 60 * 60);
+
               // Log first and last point for debugging
               if (index === 0 || index === formattedHistory.length - 1) {
                 console.log(`[${index === 0 ? 'FIRST' : 'LAST'}] ${item.date}:`, {
                   portfolioReturn: portfolioReturn.toFixed(2) + '%',
                   spyReturn: spyReturn.toFixed(2) + '%',
                   spyPrice: closestSpyBar.c,
-                  portfolioValue: item.value
+                  portfolioValue: item.value,
+                  hoursDiff: hoursDiff.toFixed(2)
                 });
               }
 
               return {
                 date: item.date,
                 spyReturn: spyReturn,
-                portfolioReturn: portfolioReturn
+                portfolioReturn: portfolioReturn,
+                spyBarTime: closestSpyBar.t,
+                itemTimestamp: itemTimestamp,
+                hoursDiff: hoursDiff
               };
             });
+
+            // Filter out data points where SPY bar is stale (more than 2 hours old)
+            // This removes after-hours/weekend data where we're reusing old SPY prices
+            const filteredData = rawComparisonData.filter(point => point.hoursDiff <= 2);
+
+            console.log(`📊 SPY Data Points: ${rawComparisonData.length} total, ${filteredData.length} with fresh SPY data (${rawComparisonData.length - filteredData.length} filtered out)`);
+
+            if (filteredData.length > 0) {
+              console.log('📊 First filtered point:', filteredData[0].date, 'Portfolio value:', formattedHistory.find(h => h.date === filteredData[0].date)?.value);
+              console.log('📊 Last FILTERED point:', filteredData[filteredData.length - 1].date, 'Portfolio value:', formattedHistory.find(h => h.date === filteredData[filteredData.length - 1].date)?.value, 'Portfolio return:', filteredData[filteredData.length - 1].portfolioReturn.toFixed(2) + '%');
+              console.log('📊 Original first point:', formattedHistory[0].date, 'Portfolio value:', formattedHistory[0].value);
+              console.log('📊 Original CURRENT point:', formattedHistory[formattedHistory.length - 1].date, 'Portfolio value:', formattedHistory[formattedHistory.length - 1].value);
+            }
+
+            // Map to comparison data format (removing extra metadata)
+            comparisonData = filteredData.map(point => ({
+              date: point.date,
+              spyReturn: point.spyReturn,
+              portfolioReturn: point.portfolioReturn
+            }));
 
             // CRITICAL FIX: Normalize both to start at EXACTLY 0% by subtracting first point's offset
             if (comparisonData.length > 0) {
@@ -410,6 +454,14 @@ export default function TradingDashboard() {
   }
 
   const totalUnrealizedPnL = positions.reduce((sum, pos) => sum + (pos.unrealized_pnl || 0), 0);
+
+  // Calculate total portfolio return from start
+  const initialPortfolioValue = portfolioHistory.length > 0 ? portfolioHistory[0].value : 100000;
+  const currentPortfolioValue = account?.portfolio_value || 0;
+  const totalReturn = initialPortfolioValue > 0
+    ? ((currentPortfolioValue - initialPortfolioValue) / initialPortfolioValue) * 100
+    : 0;
+  const totalReturnDollar = currentPortfolioValue - initialPortfolioValue;
 
   // Calculate Market Exposure - how much capital is invested
   const investedAmount = (account?.portfolio_value || 0) - (account?.cash || 0);
@@ -504,19 +556,19 @@ export default function TradingDashboard() {
             </div>
           </div>
 
-          {/* Card 2: Current Profit/Loss */}
+          {/* Card 2: Total Return (Current) */}
           <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-300 text-sm">Current Profit/Loss</p>
-                <p className={`text-2xl font-bold ${totalUnrealizedPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {totalUnrealizedPnL >= 0 ? '+' : ''}{((totalUnrealizedPnL / (account?.portfolio_value || 1)) * 100).toFixed(2)}%
+                <p className="text-gray-300 text-sm">Total Return (Current)</p>
+                <p className={`text-2xl font-bold ${totalReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {totalReturn >= 0 ? '+' : ''}{totalReturn.toFixed(2)}%
                 </p>
                 <p className="text-xs text-gray-400 mt-1">
-                  {totalUnrealizedPnL >= 0 ? '+' : ''}${totalUnrealizedPnL.toLocaleString()} on open positions
+                  {totalReturnDollar >= 0 ? '+' : ''}${totalReturnDollar.toLocaleString()} • Real-time account value
                 </p>
               </div>
-              {totalUnrealizedPnL >= 0 ? (
+              {totalReturn >= 0 ? (
                 <TrendingUp className="w-8 h-8 text-green-400" />
               ) : (
                 <TrendingDown className="w-8 h-8 text-red-400" />
@@ -562,7 +614,7 @@ export default function TradingDashboard() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-white">Stock Performance (AI Trades)</h3>
               <div className="text-sm text-gray-300">
-                Total: <span className={`font-bold ${totalUnrealizedPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                Unrealized P&L: <span className={`font-bold ${totalUnrealizedPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {totalUnrealizedPnL >= 0 ? '+' : ''}{((totalUnrealizedPnL / (account?.portfolio_value || 1)) * 100).toFixed(1)}%
                 </span>
               </div>
@@ -975,28 +1027,34 @@ export default function TradingDashboard() {
         {sp500Data.length > 0 && (
           <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20 mb-8">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">AI Performance vs. S&P 500</h3>
+              <div>
+                <h3 className="text-lg font-semibold text-white">AI Performance vs. S&P 500</h3>
+                <p className="text-xs text-gray-400 mt-1">📊 Market hours only (9:30 AM - 4:00 PM ET) • Chart shows performance at last market close</p>
+                <p className="text-xs text-cyan-400 mt-0.5">💡 See &quot;Total Return (Current)&quot; card above for real-time performance</p>
+              </div>
               {sp500Data.length > 0 && (() => {
                 const aiReturn = sp500Data[sp500Data.length - 1].portfolioReturn;
                 const spyReturn = sp500Data[sp500Data.length - 1].spyReturn;
                 const outperformance = aiReturn - spyReturn;
 
                 return (
-                  <div className="flex items-center space-x-4 text-xs">
-                    <div className="flex items-center space-x-1">
-                      <span className="text-gray-400">AI Return:</span>
-                      <span className={`font-semibold ${aiReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {aiReturn >= 0 ? '+' : ''}{aiReturn.toFixed(2)}%
-                      </span>
+                  <div className="flex flex-col items-end space-y-1 text-xs">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-1">
+                        <span className="text-gray-400">AI (at market close):</span>
+                        <span className={`font-semibold ${aiReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {aiReturn >= 0 ? '+' : ''}{aiReturn.toFixed(2)}%
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <span className="text-gray-400">S&P 500:</span>
+                        <span className={`font-semibold ${spyReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {spyReturn >= 0 ? '+' : ''}{spyReturn.toFixed(2)}%
+                        </span>
+                      </div>
                     </div>
                     <div className="flex items-center space-x-1">
-                      <span className="text-gray-400">S&P 500:</span>
-                      <span className={`font-semibold ${spyReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {spyReturn >= 0 ? '+' : ''}{spyReturn.toFixed(2)}%
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <span className="text-gray-400">Difference:</span>
+                      <span className="text-gray-400">Outperformance:</span>
                       <span className={`font-semibold ${outperformance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                         {outperformance >= 0 ? '+' : ''}{outperformance.toFixed(2)}%
                       </span>
