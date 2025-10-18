@@ -196,20 +196,45 @@ export default function TradingDashboard() {
           });
         setPortfolioHistory(formattedHistory);
 
-        // Fetch real S&P 500 data for comparison (no caching - always fetch fresh)
+        // Fetch real S&P 500 data for comparison with smart caching
         if (formattedHistory.length > 0) {
-          // Clear any old cached data
-          localStorage.removeItem('spy_cache');
-          localStorage.removeItem('spy_order_count');
-
           let spyBars = null;
+          let shouldFetchSpy = false;
 
-          console.log('📊 Fetching fresh S&P 500 data');
-          // Force start date to October 10, 2024
-          const startDate = new Date('2024-10-10T00:00:00Z');
+          // Get current order count to detect new trades
+          const currentOrderCount = ordersData?.length || 0;
+          const currentDate = new Date().toDateString(); // Just the date, not time
+
+          // Check cache validity
+          const cachedSpyData = localStorage.getItem('spy_cache');
+          const cachedDate = localStorage.getItem('spy_cache_date');
+          const cachedOrderCount = localStorage.getItem('spy_order_count');
+
+          // Determine if we need to fetch fresh SPY data
+          if (!cachedSpyData || !cachedDate || !cachedOrderCount) {
+            console.log('📊 No SPY cache found - fetching fresh data');
+            shouldFetchSpy = true;
+          } else if (cachedDate !== currentDate) {
+            console.log('📊 New day detected - fetching fresh SPY data');
+            shouldFetchSpy = true;
+          } else if (parseInt(cachedOrderCount) !== currentOrderCount) {
+            console.log('📊 New trade detected - fetching fresh SPY data');
+            shouldFetchSpy = true;
+          } else {
+            console.log('✅ Using cached SPY data (same day, no new trades)');
+            spyBars = JSON.parse(cachedSpyData);
+          }
+
+          if (shouldFetchSpy) {
+          // Use actual portfolio start date with 1-day buffer
+          const portfolioStartDate = new Date(formattedHistory[0].timestamp);
+          const startDate = new Date(portfolioStartDate.getTime() - (24 * 60 * 60 * 1000)); // 1 day before
           const endDate = new Date(formattedHistory[formattedHistory.length - 1].timestamp);
           const startISO = startDate.toISOString();
           const endISO = endDate.toISOString();
+
+          console.log('Portfolio start:', portfolioStartDate.toISOString());
+          console.log('SPY data range:', startISO, 'to', endISO);
 
           // Fetch SPY data from Twelve Data
           const spyResponse = await fetch(`/api/alpaca?endpoint=spy-bars&start=${startISO}&end=${endISO}`);
@@ -218,8 +243,15 @@ export default function TradingDashboard() {
             const spyHistory = await spyResponse.json();
             if (spyHistory && spyHistory.bars && Array.isArray(spyHistory.bars) && spyHistory.bars.length > 0) {
               spyBars = spyHistory.bars;
+
+              // Cache the SPY data
+              localStorage.setItem('spy_cache', JSON.stringify(spyBars));
+              localStorage.setItem('spy_cache_date', currentDate);
+              localStorage.setItem('spy_order_count', currentOrderCount.toString());
+              console.log('💾 Cached SPY data for', currentDate, 'with', currentOrderCount, 'orders');
             }
           }
+          } // End of shouldFetchSpy block
 
           // Calculate comparison data
           const initialPortfolioValue = formattedHistory[0].value;
@@ -230,30 +262,62 @@ export default function TradingDashboard() {
           }[] = [];
 
           if (spyBars && spyBars.length > 0) {
-            // Find the SPY price at the SAME time as the portfolio starts
+            // Find the SPY price at or BEFORE the portfolio start (never after)
             const firstPortfolioTimestamp = formattedHistory[0].timestamp;
-            const initialSpyBar = spyBars.reduce((prev: { t: string; c: number }, curr: { t: string; c: number }) => {
-              const prevDiff = Math.abs(new Date(prev.t).getTime() - firstPortfolioTimestamp);
-              const currDiff = Math.abs(new Date(curr.t).getTime() - firstPortfolioTimestamp);
-              return currDiff < prevDiff ? curr : prev;
+
+            // Filter to only bars at or before portfolio start, then take the closest one
+            const validSpyBars = spyBars.filter((bar: { t: string; c: number }) =>
+              new Date(bar.t).getTime() <= firstPortfolioTimestamp
+            );
+
+            if (validSpyBars.length === 0) {
+              console.error('❌ No SPY bars found before portfolio start - using first available');
+              // Fallback to first available bar if no bars before start
+              validSpyBars.push(spyBars[0]);
+            }
+
+            // Find the closest SPY bar at or before portfolio start
+            const initialSpyBar = validSpyBars.reduce((prev: { t: string; c: number }, curr: { t: string; c: number }) => {
+              const prevDiff = firstPortfolioTimestamp - new Date(prev.t).getTime();
+              const currDiff = firstPortfolioTimestamp - new Date(curr.t).getTime();
+              return currDiff < prevDiff && currDiff >= 0 ? curr : prev;
             });
             const initialSpyPrice = initialSpyBar.c;
 
             console.log('Portfolio starts at:', new Date(firstPortfolioTimestamp).toISOString());
-            console.log('Initial SPY price:', initialSpyPrice, 'at', initialSpyBar.t);
+            console.log('Initial SPY bar selected:', initialSpyBar.t, 'Price:', initialSpyPrice);
+            console.log('Time difference:', (firstPortfolioTimestamp - new Date(initialSpyBar.t).getTime()) / (1000 * 60), 'minutes');
             console.log('Total SPY bars received:', spyBars.length);
 
             // Use portfolio timestamps as the base (matches your portfolio data points)
-            comparisonData = formattedHistory.map((item) => {
+            comparisonData = formattedHistory.map((item, index) => {
               const itemTimestamp = item.timestamp;
-              const closestSpyBar = spyBars.reduce((prev: { t: string; c: number }, curr: { t: string; c: number }) => {
-                const prevDiff = Math.abs(new Date(prev.t).getTime() - itemTimestamp);
-                const currDiff = Math.abs(new Date(curr.t).getTime() - itemTimestamp);
-                return currDiff < prevDiff ? curr : prev;
-              });
+
+              // Find SPY bar at or before this timestamp (prefer exact match or most recent before)
+              const validBarsForPoint = spyBars.filter((bar: { t: string; c: number }) =>
+                new Date(bar.t).getTime() <= itemTimestamp
+              );
+
+              const closestSpyBar = validBarsForPoint.length > 0
+                ? validBarsForPoint.reduce((prev: { t: string; c: number }, curr: { t: string; c: number }) => {
+                    const prevTime = new Date(prev.t).getTime();
+                    const currTime = new Date(curr.t).getTime();
+                    return currTime > prevTime ? curr : prev; // Take most recent
+                  })
+                : spyBars[0]; // Fallback to first bar if none found
 
               const spyReturn = ((closestSpyBar.c - initialSpyPrice) / initialSpyPrice) * 100;
               const portfolioReturn = ((item.value - initialPortfolioValue) / initialPortfolioValue) * 100;
+
+              // Log first and last point for debugging
+              if (index === 0 || index === formattedHistory.length - 1) {
+                console.log(`[${index === 0 ? 'FIRST' : 'LAST'}] ${item.date}:`, {
+                  portfolioReturn: portfolioReturn.toFixed(2) + '%',
+                  spyReturn: spyReturn.toFixed(2) + '%',
+                  spyPrice: closestSpyBar.c,
+                  portfolioValue: item.value
+                });
+              }
 
               return {
                 date: item.date,
@@ -261,6 +325,54 @@ export default function TradingDashboard() {
                 portfolioReturn: portfolioReturn
               };
             });
+
+            // CRITICAL FIX: Normalize both to start at EXACTLY 0% by subtracting first point's offset
+            if (comparisonData.length > 0) {
+              const firstSpyReturn = comparisonData[0].spyReturn;
+              const firstPortfolioReturn = comparisonData[0].portfolioReturn;
+
+              console.log('🔍 Before normalization - First point:', {
+                spy: firstSpyReturn.toFixed(4) + '%',
+                portfolio: firstPortfolioReturn.toFixed(4) + '%'
+              });
+
+              // Validate that we have valid numbers
+              if (isNaN(firstSpyReturn) || isNaN(firstPortfolioReturn)) {
+                console.error('❌ Invalid first data point - NaN detected');
+                return;
+              }
+
+              // Adjust all data points to start at 0%
+              comparisonData = comparisonData.map((point, idx) => {
+                const normalizedSpyReturn = point.spyReturn - firstSpyReturn;
+                const normalizedPortfolioReturn = point.portfolioReturn - firstPortfolioReturn;
+
+                // Force first point to be EXACTLY 0, 0 (eliminate floating point errors)
+                if (idx === 0) {
+                  return {
+                    date: point.date,
+                    spyReturn: 0,
+                    portfolioReturn: 0
+                  };
+                }
+
+                return {
+                  date: point.date,
+                  spyReturn: normalizedSpyReturn,
+                  portfolioReturn: normalizedPortfolioReturn
+                };
+              });
+
+              console.log('✅ After normalization - First point:', {
+                spy: comparisonData[0].spyReturn.toFixed(4) + '%',
+                portfolio: comparisonData[0].portfolioReturn.toFixed(4) + '%'
+              });
+              console.log('📊 Last point:', {
+                spy: comparisonData[comparisonData.length - 1].spyReturn.toFixed(2) + '%',
+                portfolio: comparisonData[comparisonData.length - 1].portfolioReturn.toFixed(2) + '%',
+                difference: (comparisonData[comparisonData.length - 1].portfolioReturn - comparisonData[comparisonData.length - 1].spyReturn).toFixed(2) + '%'
+              });
+            }
           }
 
           console.log('Comparison Data:', comparisonData);
