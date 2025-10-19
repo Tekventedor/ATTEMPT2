@@ -219,8 +219,8 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
 
   if (!mounted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-white text-xl">Loading dashboard...</div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-gray-100 flex items-center justify-center">
+        <div className="text-gray-900 text-xl">Loading dashboard...</div>
       </div>
     );
   }
@@ -274,18 +274,20 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-gray-100">
       {/* Header */}
-      <div className="bg-white/10 backdrop-blur-lg border-b border-white/20">
+      <div className="bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="bg-white p-2 rounded-lg">
-                <img src="/flowhunt-logo.svg" alt="Flowhunt Logo" className="w-6 h-6" />
-              </div>
+              <img
+                src="https://static.flowhunt.io/images/logo.svg"
+                alt="Flowhunt Logo"
+                className="h-8"
+              />
               <div>
-                <h1 className="text-2xl font-bold text-white">Flowhunt AI Trading Bot</h1>
-                <p className="text-xs text-gray-300">Snapshot from {new Date(data.timestamp).toLocaleString()}</p>
+                <h1 className="text-2xl font-bold text-gray-900">AI Trading Bot</h1>
+                <p className="text-xs text-gray-600">Snapshot from {new Date(data.timestamp).toLocaleString()}</p>
               </div>
             </div>
           </div>
@@ -296,66 +298,74 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {/* Card 1: Total Balance */}
-          <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20">
+          <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-300 text-sm">Total Balance</p>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-gray-600 text-sm font-medium">Total Balance</p>
+                <p className="text-2xl font-bold text-gray-900">
                   ${account?.portfolio_value?.toLocaleString() || '0'}
                 </p>
-                <p className="text-xs text-gray-400 mt-1">Cash + holdings</p>
+                <p className="text-xs text-gray-500 mt-1">Cash + holdings</p>
               </div>
-              <DollarSign className="w-8 h-8 text-green-400" />
+              <div className="bg-green-100 p-3 rounded-lg">
+                <DollarSign className="w-6 h-6 text-green-600" />
+              </div>
             </div>
           </div>
 
           {/* Card 2: Total Return */}
-          <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20">
+          <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-300 text-sm">Total Return</p>
-                <p className={`text-2xl font-bold ${totalReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                <p className="text-gray-600 text-sm font-medium">Total Return</p>
+                <p className={`text-2xl font-bold ${totalReturn >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {totalReturn >= 0 ? '+' : ''}{totalReturn.toFixed(2)}%
                 </p>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-gray-500 mt-1">
                   {totalReturnDollar >= 0 ? '+' : ''}${totalReturnDollar.toLocaleString()}
                 </p>
               </div>
-              {totalReturn >= 0 ? (
-                <TrendingUp className="w-8 h-8 text-green-400" />
-              ) : (
-                <TrendingDown className="w-8 h-8 text-red-400" />
-              )}
+              <div className={`p-3 rounded-lg ${totalReturn >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
+                {totalReturn >= 0 ? (
+                  <TrendingUp className="w-6 h-6 text-green-600" />
+                ) : (
+                  <TrendingDown className="w-6 h-6 text-red-600" />
+                )}
+              </div>
             </div>
           </div>
 
           {/* Card 3: Market Exposure */}
-          <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20">
+          <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-300 text-sm">Market Exposure</p>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-gray-600 text-sm font-medium">Market Exposure</p>
+                <p className="text-2xl font-bold text-gray-900">
                   {marketExposure.toFixed(0)}%
                 </p>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-gray-500 mt-1">
                   {marketExposure.toFixed(0)}% invested
                 </p>
               </div>
-              <BarChart3 className="w-8 h-8 text-blue-400" />
+              <div className="bg-blue-100 p-3 rounded-lg">
+                <BarChart3 className="w-6 h-6 text-blue-600" />
+              </div>
             </div>
           </div>
 
           {/* Card 4: Available to Invest */}
-          <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20">
+          <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-300 text-sm">Available to Invest</p>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-gray-600 text-sm font-medium">Available to Invest</p>
+                <p className="text-2xl font-bold text-gray-900">
                   ${account?.cash?.toLocaleString() || '0'}
                 </p>
-                <p className="text-xs text-gray-400 mt-1">Uninvested cash</p>
+                <p className="text-xs text-gray-500 mt-1">Uninvested cash</p>
               </div>
-              <DollarSign className="w-8 h-8 text-purple-400" />
+              <div className="bg-purple-100 p-3 rounded-lg">
+                <DollarSign className="w-6 h-6 text-purple-600" />
+              </div>
             </div>
           </div>
         </div>
@@ -363,31 +373,31 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
         {/* Main Performance Chart - 60/40 Split */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">
           {/* Stock Performance Chart - 60% width */}
-          <div className="lg:col-span-3 bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20">
+          <div className="lg:col-span-3 bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">Stock Performance (AI Trades)</h3>
-              <div className="text-sm text-gray-300">
-                Unrealized P&L: <span className={`font-bold ${totalUnrealizedPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              <h3 className="text-lg font-semibold text-gray-900">Stock Performance (AI Trades)</h3>
+              <div className="text-sm text-gray-600">
+                Unrealized P&L: <span className={`font-bold ${totalUnrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {totalUnrealizedPnL >= 0 ? '+' : ''}{((totalUnrealizedPnL / (account?.portfolio_value || 1)) * 100).toFixed(1)}%
                 </span>
               </div>
             </div>
             <ResponsiveContainer width="100%" height={400}>
               <LineChart data={agentPerformanceHistory.length > 0 ? agentPerformanceHistory : portfolioHistory}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="date" stroke="#9CA3AF" style={{ fontSize: '12px' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                <XAxis dataKey="date" stroke="#6B7280" style={{ fontSize: '12px' }} />
                 <YAxis
-                  stroke="#9CA3AF"
+                  stroke="#6B7280"
                   domain={[3000, 15000]}
                   tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
                   style={{ fontSize: '12px' }}
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#1F2937',
-                    border: '1px solid #374151',
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E5E7EB',
                     borderRadius: '8px',
-                    color: '#F9FAFB'
+                    color: '#111827'
                   }}
                   formatter={(value: number, name: string) => {
                     const pnl = agentPnLPercent[name] || 0;
@@ -416,9 +426,9 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                       className="w-3.5 h-3.5 rounded-full"
                       style={{ backgroundColor: AGENT_COLORS[pos.symbol] || COLORS[index % COLORS.length] }}
                     ></div>
-                    <span className="text-gray-200 font-medium">{pos.symbol}</span>
+                    <span className="text-gray-700 font-medium">{pos.symbol}</span>
                   </div>
-                  <span className={`font-bold ml-2 ${(agentPnLPercent[pos.symbol] || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  <span className={`font-bold ml-2 ${(agentPnLPercent[pos.symbol] || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {(agentPnLPercent[pos.symbol] || 0) >= 0 ? '+' : ''}{(agentPnLPercent[pos.symbol] || 0).toFixed(1)}%
                   </span>
                 </div>
@@ -427,42 +437,42 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
           </div>
 
           {/* Activity Log - 40% width */}
-          <div className="lg:col-span-2 bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20">
+          <div className="lg:col-span-2 bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
             <div className="flex items-center space-x-2 mb-4">
-              <Activity className="w-5 h-5 text-purple-400" />
-              <h3 className="text-lg font-semibold text-white">Activity Log</h3>
+              <Activity className="w-5 h-5 text-purple-600" />
+              <h3 className="text-lg font-semibold text-gray-900">Activity Log</h3>
             </div>
 
             <div className="space-y-1.5 max-h-[500px] overflow-y-auto">
               {tradingLogs.slice(0, 20).map((log) => (
-                <div key={log.id} className="bg-white/5 rounded-lg p-2 border border-white/10 hover:bg-white/10 transition-colors">
+                <div key={log.id} className="bg-gray-50 rounded-lg p-2 border border-gray-200 hover:bg-gray-100 transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       {log.action === 'BUY' ? (
-                        <TrendingUp className="w-3 h-3 text-green-400 flex-shrink-0" />
+                        <TrendingUp className="w-3 h-3 text-green-600 flex-shrink-0" />
                       ) : log.action === 'SELL' ? (
-                        <TrendingDown className="w-3 h-3 text-red-400 flex-shrink-0" />
+                        <TrendingDown className="w-3 h-3 text-red-600 flex-shrink-0" />
                       ) : (
-                        <Activity className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                        <Activity className="w-3 h-3 text-gray-600 flex-shrink-0" />
                       )}
                       <span className={`text-xs font-semibold ${
-                        log.action === 'BUY' ? 'text-green-400' :
-                        log.action === 'SELL' ? 'text-red-400' :
-                        'text-gray-400'
+                        log.action === 'BUY' ? 'text-green-600' :
+                        log.action === 'SELL' ? 'text-red-600' :
+                        'text-gray-600'
                       }`}>
                         {log.action}
                       </span>
-                      <span className="text-xs text-white">{log.symbol}</span>
+                      <span className="text-xs text-gray-900">{log.symbol}</span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <span className="text-xs text-gray-400">{log.quantity} @ ${log.price?.toFixed(2)}</span>
-                      <span className="text-xs text-gray-300 font-medium">${log.total_value?.toLocaleString()}</span>
+                      <span className="text-xs text-gray-600">{log.quantity} @ ${log.price?.toFixed(2)}</span>
+                      <span className="text-xs text-gray-900 font-medium">${log.total_value?.toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
               ))}
               {tradingLogs.length === 0 && (
-                <div className="text-center py-8 text-gray-400">
+                <div className="text-center py-8 text-gray-500">
                   <Activity className="w-8 h-8 mx-auto mb-2 opacity-50" />
                   <p className="text-xs">No activity yet</p>
                 </div>
@@ -474,9 +484,9 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
         {/* Portfolio Performance & Distribution Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Portfolio Value History */}
-          <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20">
+          <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">Portfolio Value</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Portfolio Value</h3>
               {portfolioHistory.length > 0 && (() => {
                 const values = portfolioHistory.map(h => h.value);
                 const max = Math.max(...values);
@@ -486,16 +496,16 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                 return (
                   <div className="flex items-center space-x-3 text-xs">
                     <div className="flex items-center space-x-1">
-                      <span className="text-gray-400">Max:</span>
-                      <span className="text-green-400 font-semibold">${max.toLocaleString()}</span>
+                      <span className="text-gray-600">Max:</span>
+                      <span className="text-green-600 font-semibold">${max.toLocaleString()}</span>
                     </div>
                     <div className="flex items-center space-x-1">
-                      <span className="text-gray-400">Min:</span>
-                      <span className="text-red-400 font-semibold">${min.toLocaleString()}</span>
+                      <span className="text-gray-600">Min:</span>
+                      <span className="text-red-600 font-semibold">${min.toLocaleString()}</span>
                     </div>
                     <div className="flex items-center space-x-1">
-                      <span className="text-gray-400">Avg:</span>
-                      <span className="text-blue-400 font-semibold">${avg.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+                      <span className="text-gray-600">Avg:</span>
+                      <span className="text-blue-600 font-semibold">${avg.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
                     </div>
                   </div>
                 );
@@ -503,20 +513,20 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
             </div>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={portfolioHistory}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="date" stroke="#9CA3AF" style={{ fontSize: '12px' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                <XAxis dataKey="date" stroke="#6B7280" style={{ fontSize: '12px' }} />
                 <YAxis
-                  stroke="#9CA3AF"
+                  stroke="#6B7280"
                   domain={[90000, 110000]}
                   tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
                   style={{ fontSize: '12px' }}
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#1F2937',
-                    border: '1px solid #374151',
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E5E7EB',
                     borderRadius: '8px',
-                    color: '#F9FAFB'
+                    color: '#111827'
                   }}
                   formatter={(value: number) => [`$${value.toLocaleString()}`, 'Portfolio Value']}
                 />
@@ -558,8 +568,8 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
           </div>
 
           {/* Agent Distribution */}
-          <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20">
-            <h3 className="text-lg font-semibold text-white mb-4">Agent Distribution</h3>
+          <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Agent Distribution</h3>
             {positions.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
@@ -585,10 +595,10 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                   </Pie>
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: '#1F2937',
-                      border: '1px solid #374151',
+                      backgroundColor: '#FFFFFF',
+                      border: '1px solid #E5E7EB',
                       borderRadius: '8px',
-                      color: '#F9FAFB'
+                      color: '#111827'
                     }}
                     formatter={(value: number, name: string) => {
                       const pnl = agentPnLPercent[name] || 0;
@@ -598,7 +608,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-[300px] text-gray-400">
+              <div className="flex items-center justify-center h-[300px] text-gray-500">
                 <div className="text-center">
                   <AlertCircle className="w-12 h-12 mx-auto mb-2" />
                   <p>No positions found</p>
@@ -610,11 +620,11 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
 
         {/* AI Performance vs S&P 500 */}
         {sp500Data.length > 0 && (
-          <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20 mb-8">
+          <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm mb-8">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-lg font-semibold text-white">AI Performance vs. S&P 500</h3>
-                <p className="text-xs text-gray-400 mt-1">Market hours comparison</p>
+                <h3 className="text-lg font-semibold text-gray-900">AI Performance vs. S&P 500</h3>
+                <p className="text-xs text-gray-600 mt-1">Market hours comparison</p>
               </div>
               {sp500Data.length > 0 && (() => {
                 const aiReturn = sp500Data[sp500Data.length - 1].portfolioReturn;
@@ -625,21 +635,21 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                   <div className="flex flex-col items-end space-y-1 text-xs">
                     <div className="flex items-center space-x-4">
                       <div className="flex items-center space-x-1">
-                        <span className="text-gray-400">AI:</span>
-                        <span className={`font-semibold ${aiReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        <span className="text-gray-600">AI:</span>
+                        <span className={`font-semibold ${aiReturn >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                           {aiReturn >= 0 ? '+' : ''}{aiReturn.toFixed(2)}%
                         </span>
                       </div>
                       <div className="flex items-center space-x-1">
-                        <span className="text-gray-400">S&P 500:</span>
-                        <span className={`font-semibold ${spyReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        <span className="text-gray-600">S&P 500:</span>
+                        <span className={`font-semibold ${spyReturn >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                           {spyReturn >= 0 ? '+' : ''}{spyReturn.toFixed(2)}%
                         </span>
                       </div>
                     </div>
                     <div className="flex items-center space-x-1">
-                      <span className="text-gray-400">Outperformance:</span>
-                      <span className={`font-semibold ${outperformance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      <span className="text-gray-600">Outperformance:</span>
+                      <span className={`font-semibold ${outperformance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                         {outperformance >= 0 ? '+' : ''}{outperformance.toFixed(2)}%
                       </span>
                     </div>
@@ -649,25 +659,25 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
             </div>
             <ResponsiveContainer width="100%" height={350}>
               <LineChart data={sp500Data}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                 <XAxis
                   dataKey="date"
-                  stroke="#9CA3AF"
+                  stroke="#6B7280"
                   style={{ fontSize: '12px' }}
                   interval="preserveStartEnd"
                   minTickGap={50}
                 />
                 <YAxis
-                  stroke="#9CA3AF"
+                  stroke="#6B7280"
                   tickFormatter={(value) => `${value.toFixed(1)}%`}
                   style={{ fontSize: '12px' }}
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#1F2937',
-                    border: '1px solid #374151',
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E5E7EB',
                     borderRadius: '8px',
-                    color: '#F9FAFB'
+                    color: '#111827'
                   }}
                 />
                 {tradingLogs.filter(log => log.timestamp).map((log) => {
@@ -717,30 +727,30 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
             <div className="mt-4 flex items-center justify-center space-x-6 text-sm">
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-0.5 bg-purple-500"></div>
-                <span className="text-gray-300">AI Portfolio</span>
+                <span className="text-gray-700">AI Portfolio</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-0.5 bg-cyan-400"></div>
-                <span className="text-gray-300">S&P 500 Index</span>
+                <span className="text-gray-700">S&P 500 Index</span>
               </div>
             </div>
           </div>
         )}
 
         {/* Positions Table */}
-        <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20 mb-8">
-          <h3 className="text-lg font-semibold text-white mb-4">Current Positions</h3>
+        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm mb-8">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Positions</h3>
           {positions.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full text-white">
+              <table className="w-full text-gray-900">
                 <thead>
-                  <tr className="border-b border-white/20">
-                    <th className="text-left py-3 px-4">Stock</th>
-                    <th className="text-left py-3 px-4">Shares</th>
-                    <th className="text-left py-3 px-4">Avg Buy Price</th>
-                    <th className="text-left py-3 px-4">Current Price</th>
-                    <th className="text-left py-3 px-4">Value</th>
-                    <th className="text-left py-3 px-4">Profit/Loss</th>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-4 text-gray-700 font-semibold">Stock</th>
+                    <th className="text-left py-3 px-4 text-gray-700 font-semibold">Shares</th>
+                    <th className="text-left py-3 px-4 text-gray-700 font-semibold">Avg Buy Price</th>
+                    <th className="text-left py-3 px-4 text-gray-700 font-semibold">Current Price</th>
+                    <th className="text-left py-3 px-4 text-gray-700 font-semibold">Value</th>
+                    <th className="text-left py-3 px-4 text-gray-700 font-semibold">Profit/Loss</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -749,7 +759,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                     const isProfit = position.unrealized_pl >= 0;
 
                     return (
-                      <tr key={position.asset_id} className="border-b border-white/10 hover:bg-white/5 transition-colors">
+                      <tr key={position.asset_id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                         <td className="py-3 px-4">
                           <div className="flex items-center space-x-3">
                             <div
@@ -760,10 +770,10 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                           </div>
                         </td>
                         <td className="py-3 px-4">{position.qty}</td>
-                        <td className="py-3 px-4 text-gray-300">${position.avg_entry_price.toFixed(2)}</td>
+                        <td className="py-3 px-4 text-gray-600">${position.avg_entry_price.toFixed(2)}</td>
                         <td className="py-3 px-4 font-medium">${position.current_price.toFixed(2)}</td>
                         <td className="py-3 px-4 font-medium">${position.market_value.toLocaleString()}</td>
-                        <td className={`py-3 px-4 font-semibold ${isProfit ? 'text-green-400' : 'text-red-400'}`}>
+                        <td className={`py-3 px-4 font-semibold ${isProfit ? 'text-green-600' : 'text-red-600'}`}>
                           <div className="flex flex-col">
                             <span>{isProfit ? '+' : ''}${position.unrealized_pl.toFixed(2)}</span>
                             <span className="text-xs opacity-80">({isProfit ? '+' : ''}{pnlPercent.toFixed(2)}%)</span>
@@ -776,7 +786,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
               </table>
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-400">
+            <div className="text-center py-8 text-gray-500">
               <AlertCircle className="w-12 h-12 mx-auto mb-2" />
               <p>No positions found</p>
             </div>
