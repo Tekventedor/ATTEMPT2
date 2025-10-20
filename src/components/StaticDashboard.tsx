@@ -525,19 +525,22 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                   formatter={(value: number) => [`$${value.toLocaleString()}`, 'Portfolio Value']}
                 />
                 {tradingLogs.filter(log => log.timestamp).map((log) => {
-                  const tradeTime = new Date(log.timestamp as string);
-                  tradeTime.setMinutes(0);
-                  tradeTime.setSeconds(0);
-                  tradeTime.setMilliseconds(0);
-                  const tradeDate = format(tradeTime, 'MM/dd HH:mm');
+                  const tradeTimestamp = new Date(log.timestamp as string).getTime();
                   const isBuy = log.action === 'BUY';
-                  const existsInHistory = portfolioHistory.some(h => h.date === tradeDate);
-                  if (!existsInHistory) return null;
+
+                  // Find closest data point in portfolio history
+                  const closestPoint = portfolioHistory.reduce((prev, curr) => {
+                    const prevDiff = Math.abs(prev.timestamp - tradeTimestamp);
+                    const currDiff = Math.abs(curr.timestamp - tradeTimestamp);
+                    return currDiff < prevDiff ? curr : prev;
+                  });
+
+                  if (!closestPoint) return null;
 
                   return (
                     <ReferenceLine
                       key={log.id as string}
-                      x={tradeDate}
+                      x={closestPoint.date}
                       stroke={isBuy ? '#10b981' : '#ef4444'}
                       strokeWidth={2}
                       strokeDasharray="3 3"
@@ -675,19 +678,26 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                   }}
                 />
                 {tradingLogs.filter(log => log.timestamp).map((log) => {
-                  const tradeTime = new Date(log.timestamp as string);
-                  tradeTime.setMinutes(0);
-                  tradeTime.setSeconds(0);
-                  tradeTime.setMilliseconds(0);
-                  const tradeDate = format(tradeTime, 'MM/dd HH:mm');
+                  const tradeTimestamp = new Date(log.timestamp as string).getTime();
                   const isBuy = log.action === 'BUY';
-                  const existsInData = sp500Data.some(h => h.date === tradeDate);
-                  if (!existsInData) return null;
+
+                  // Find closest data point in sp500Data
+                  if (sp500Data.length === 0) return null;
+
+                  const closestPoint = portfolioHistory.reduce((prev, curr) => {
+                    const prevDiff = Math.abs(prev.timestamp - tradeTimestamp);
+                    const currDiff = Math.abs(curr.timestamp - tradeTimestamp);
+                    return currDiff < prevDiff ? curr : prev;
+                  });
+
+                  // Find the corresponding sp500Data point by matching date
+                  const sp500Point = sp500Data.find(h => h.date === closestPoint.date);
+                  if (!sp500Point) return null;
 
                   return (
                     <ReferenceLine
                       key={log.id as string}
-                      x={tradeDate}
+                      x={sp500Point.date}
                       stroke={isBuy ? '#10b981' : '#ef4444'}
                       strokeWidth={2}
                       strokeDasharray="3 3"
