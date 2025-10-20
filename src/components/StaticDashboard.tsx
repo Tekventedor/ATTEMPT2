@@ -105,6 +105,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
       tags: [order.status],
       timestamp: order.submitted_at
     }));
+    console.log('📊 Trading logs with timestamps:', logs.filter(l => l.timestamp).length, 'out of', logs.length);
     setTradingLogs(logs);
 
     // Process portfolio history
@@ -528,14 +529,15 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                   const tradeTimestamp = new Date(log.timestamp as string).getTime();
                   const isBuy = log.action === 'BUY';
 
+                  // Safety check - need data points to match against
+                  if (portfolioHistory.length === 0) return null;
+
                   // Find closest data point in portfolio history
                   const closestPoint = portfolioHistory.reduce((prev, curr) => {
                     const prevDiff = Math.abs(prev.timestamp - tradeTimestamp);
                     const currDiff = Math.abs(curr.timestamp - tradeTimestamp);
                     return currDiff < prevDiff ? curr : prev;
                   });
-
-                  if (!closestPoint) return null;
 
                   return (
                     <ReferenceLine
@@ -681,9 +683,10 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                   const tradeTimestamp = new Date(log.timestamp as string).getTime();
                   const isBuy = log.action === 'BUY';
 
-                  // Find closest data point in sp500Data
-                  if (sp500Data.length === 0) return null;
+                  // Safety checks - need data points to match against
+                  if (sp500Data.length === 0 || portfolioHistory.length === 0) return null;
 
+                  // Find closest data point in portfolio history first
                   const closestPoint = portfolioHistory.reduce((prev, curr) => {
                     const prevDiff = Math.abs(prev.timestamp - tradeTimestamp);
                     const currDiff = Math.abs(curr.timestamp - tradeTimestamp);
