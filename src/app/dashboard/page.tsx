@@ -123,17 +123,17 @@ export default function TradingDashboard() {
 
       // Convert positions to the format expected by StaticDashboard
       const positions = positionsRaw && Array.isArray(positionsRaw)
-        ? positionsRaw.map((pos: any) => ({
-            asset_id: pos.asset_id,
-            symbol: pos.symbol,
-            qty: parseFloat(pos.qty),
-            side: pos.side,
-            market_value: parseFloat(pos.market_value),
-            cost_basis: parseFloat(pos.cost_basis),
-            avg_entry_price: parseFloat(pos.avg_entry_price),
-            unrealized_pl: parseFloat(pos.unrealized_pl),
-            unrealized_plpc: parseFloat(pos.unrealized_plpc),
-            current_price: parseFloat(pos.current_price),
+        ? positionsRaw.map((pos: Record<string, unknown>) => ({
+            asset_id: pos.asset_id as string,
+            symbol: pos.symbol as string,
+            qty: parseFloat(pos.qty as string),
+            side: pos.side as string,
+            market_value: parseFloat(pos.market_value as string),
+            cost_basis: parseFloat(pos.cost_basis as string),
+            avg_entry_price: parseFloat(pos.avg_entry_price as string),
+            unrealized_pl: parseFloat(pos.unrealized_pl as string),
+            unrealized_plpc: parseFloat(pos.unrealized_plpc as string),
+            current_price: parseFloat(pos.current_price as string),
           }))
         : [];
 

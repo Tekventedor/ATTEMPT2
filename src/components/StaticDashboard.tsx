@@ -72,7 +72,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
   const [mounted, setMounted] = useState(false);
   const [account, setAccount] = useState<Account | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
-  const [tradingLogs, setTradingLogs] = useState<any[]>([]);
+  const [tradingLogs, setTradingLogs] = useState<Record<string, unknown>[]>([]);
   const [portfolioHistory, setPortfolioHistory] = useState<Array<{date: string, value: number, pnl: number, timestamp: number}>>([]);
   const [sp500Data, setSp500Data] = useState<Array<{date: string, spyReturn: number, portfolioReturn: number}>>([]);
 
@@ -184,34 +184,28 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
 
             const spyReturn = ((closestSpyBar.c - initialSpyPrice) / initialSpyPrice) * 100;
             const portfolioReturn = ((item.value - initialPortfolioValue) / initialPortfolioValue) * 100;
-            const timeDiff = Math.abs(itemTimestamp - new Date(closestSpyBar.t).getTime());
-            const hoursDiff = timeDiff / (1000 * 60 * 60);
 
             return {
               date: item.date,
               spyReturn,
-              portfolioReturn,
-              hoursDiff
+              portfolioReturn
             };
           });
 
-          // Filter stale data
-          const filteredData = rawComparisonData.filter(point => point.hoursDiff <= 2);
-
           // Normalize to start at 0
-          let comparisonData = filteredData;
-          if (comparisonData.length > 0) {
-            const firstSpyReturn = comparisonData[0].spyReturn;
-            const firstPortfolioReturn = comparisonData[0].portfolioReturn;
+          let normalizedData: Array<{date: string, spyReturn: number, portfolioReturn: number}> = [];
+          if (rawComparisonData.length > 0) {
+            const firstSpyReturn = rawComparisonData[0].spyReturn;
+            const firstPortfolioReturn = rawComparisonData[0].portfolioReturn;
 
-            comparisonData = comparisonData.map((point, idx) => ({
+            normalizedData = rawComparisonData.map((point, idx) => ({
               date: point.date,
               spyReturn: idx === 0 ? 0 : point.spyReturn - firstSpyReturn,
               portfolioReturn: idx === 0 ? 0 : point.portfolioReturn - firstPortfolioReturn
             }));
           }
 
-          setSp500Data(comparisonData);
+          setSp500Data(normalizedData);
         }
       }
     }
@@ -445,7 +439,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
 
             <div className="space-y-1.5 max-h-[500px] overflow-y-auto">
               {tradingLogs.slice(0, 20).map((log) => (
-                <div key={log.id} className="bg-gray-50 rounded-lg p-2 border border-gray-200 hover:bg-gray-100 transition-colors">
+                <div key={log.id as string} className="bg-gray-50 rounded-lg p-2 border border-gray-200 hover:bg-gray-100 transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       {log.action === 'BUY' ? (
@@ -460,13 +454,13 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                         log.action === 'SELL' ? 'text-red-600' :
                         'text-gray-600'
                       }`}>
-                        {log.action}
+                        {log.action as string}
                       </span>
-                      <span className="text-xs text-gray-900">{log.symbol}</span>
+                      <span className="text-xs text-gray-900">{log.symbol as string}</span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <span className="text-xs text-gray-600">{log.quantity} @ ${log.price?.toFixed(2)}</span>
-                      <span className="text-xs text-gray-900 font-medium">${log.total_value?.toLocaleString()}</span>
+                      <span className="text-xs text-gray-600">{log.quantity as number} @ ${(log.price as number | undefined)?.toFixed(2)}</span>
+                      <span className="text-xs text-gray-900 font-medium">${(log.total_value as number | undefined)?.toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
@@ -531,7 +525,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                   formatter={(value: number) => [`$${value.toLocaleString()}`, 'Portfolio Value']}
                 />
                 {tradingLogs.filter(log => log.timestamp).map((log) => {
-                  const tradeTime = new Date(log.timestamp);
+                  const tradeTime = new Date(log.timestamp as string);
                   tradeTime.setMinutes(0);
                   tradeTime.setSeconds(0);
                   tradeTime.setMilliseconds(0);
@@ -542,7 +536,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
 
                   return (
                     <ReferenceLine
-                      key={log.id}
+                      key={log.id as string}
                       x={tradeDate}
                       stroke={isBuy ? '#10b981' : '#ef4444'}
                       strokeWidth={2}
@@ -681,7 +675,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                   }}
                 />
                 {tradingLogs.filter(log => log.timestamp).map((log) => {
-                  const tradeTime = new Date(log.timestamp);
+                  const tradeTime = new Date(log.timestamp as string);
                   tradeTime.setMinutes(0);
                   tradeTime.setSeconds(0);
                   tradeTime.setMilliseconds(0);
@@ -692,7 +686,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
 
                   return (
                     <ReferenceLine
-                      key={log.id}
+                      key={log.id as string}
                       x={tradeDate}
                       stroke={isBuy ? '#10b981' : '#ef4444'}
                       strokeWidth={2}
