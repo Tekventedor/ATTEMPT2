@@ -590,7 +590,48 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                     borderRadius: '8px',
                     color: '#111827'
                   }}
-                  formatter={(value: number) => [`$${value.toLocaleString()}`, 'Portfolio Value']}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+
+                      // Find if there's a trade at this point
+                      const tradeAtPoint = tradingLogs.find(log => {
+                        if (!log.timestamp) return false;
+                        const tradeTimestamp = new Date(log.timestamp as string).getTime();
+                        const closestPoint = portfolioHistory.reduce((prev, curr) => {
+                          const prevDiff = Math.abs(prev.timestamp - tradeTimestamp);
+                          const currDiff = Math.abs(curr.timestamp - tradeTimestamp);
+                          return currDiff < prevDiff ? curr : prev;
+                        });
+                        return closestPoint.date === data.date;
+                      });
+
+                      return (
+                        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                          <p className="text-gray-600 text-xs mb-1">{data.date}</p>
+                          <p className="text-gray-900 font-semibold">
+                            Portfolio Value: ${data.value.toLocaleString()}
+                          </p>
+                          {tradeAtPoint && (
+                            <div className={`mt-2 pt-2 border-t border-gray-200 ${
+                              tradeAtPoint.action === 'BUY' ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              <p className="font-bold text-sm">
+                                {tradeAtPoint.action} {tradeAtPoint.symbol}
+                              </p>
+                              <p className="text-xs">
+                                {tradeAtPoint.quantity} shares @ ${(tradeAtPoint.price as number)?.toFixed(2)}
+                              </p>
+                              <p className="text-xs font-semibold">
+                                Total: ${(tradeAtPoint.total_value as number)?.toLocaleString()}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />
                 {tradingLogs.filter(log => log.timestamp).map((log) => {
                   const tradeTimestamp = new Date(log.timestamp as string).getTime();
@@ -745,6 +786,51 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                     borderRadius: '8px',
                     color: '#111827'
                   }}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+
+                      // Find if there's a trade at this point
+                      const tradeAtPoint = tradingLogs.find(log => {
+                        if (!log.timestamp) return false;
+                        const tradeTimestamp = new Date(log.timestamp as string).getTime();
+                        const closestPoint = portfolioHistory.reduce((prev, curr) => {
+                          const prevDiff = Math.abs(prev.timestamp - tradeTimestamp);
+                          const currDiff = Math.abs(curr.timestamp - tradeTimestamp);
+                          return currDiff < prevDiff ? curr : prev;
+                        });
+                        return closestPoint.date === data.date;
+                      });
+
+                      return (
+                        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                          <p className="text-gray-600 text-xs mb-1">{data.date}</p>
+                          <p className="text-purple-600 font-semibold text-sm">
+                            AI: {data.portfolioReturn >= 0 ? '+' : ''}{data.portfolioReturn.toFixed(2)}%
+                          </p>
+                          <p className="text-cyan-600 font-semibold text-sm">
+                            S&P 500: {data.spyReturn >= 0 ? '+' : ''}{data.spyReturn.toFixed(2)}%
+                          </p>
+                          {tradeAtPoint && (
+                            <div className={`mt-2 pt-2 border-t border-gray-200 ${
+                              tradeAtPoint.action === 'BUY' ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              <p className="font-bold text-sm">
+                                {tradeAtPoint.action} {tradeAtPoint.symbol}
+                              </p>
+                              <p className="text-xs">
+                                {tradeAtPoint.quantity} shares @ ${(tradeAtPoint.price as number)?.toFixed(2)}
+                              </p>
+                              <p className="text-xs font-semibold">
+                                Total: ${(tradeAtPoint.total_value as number)?.toLocaleString()}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />
                 {tradingLogs.filter(log => log.timestamp).map((log) => {
                   const tradeTimestamp = new Date(log.timestamp as string).getTime();
@@ -871,6 +957,51 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                     border: '1px solid #E5E7EB',
                     borderRadius: '8px',
                     color: '#111827'
+                  }}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+
+                      // Find if there's a trade at this point
+                      const tradeAtPoint = tradingLogs.find(log => {
+                        if (!log.timestamp) return false;
+                        const tradeTimestamp = new Date(log.timestamp as string).getTime();
+                        const closestPoint = portfolioHistory.reduce((prev, curr) => {
+                          const prevDiff = Math.abs(prev.timestamp - tradeTimestamp);
+                          const currDiff = Math.abs(curr.timestamp - tradeTimestamp);
+                          return currDiff < prevDiff ? curr : prev;
+                        });
+                        return closestPoint.date === data.date;
+                      });
+
+                      return (
+                        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                          <p className="text-gray-600 text-xs mb-1">{data.date}</p>
+                          <p className="text-purple-600 font-semibold text-sm">
+                            AI: {data.portfolioReturn >= 0 ? '+' : ''}{data.portfolioReturn.toFixed(2)}%
+                          </p>
+                          <p className="text-red-600 font-semibold text-sm">
+                            NASDAQ-100: {data.qqqReturn >= 0 ? '+' : ''}{data.qqqReturn.toFixed(2)}%
+                          </p>
+                          {tradeAtPoint && (
+                            <div className={`mt-2 pt-2 border-t border-gray-200 ${
+                              tradeAtPoint.action === 'BUY' ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              <p className="font-bold text-sm">
+                                {tradeAtPoint.action} {tradeAtPoint.symbol}
+                              </p>
+                              <p className="text-xs">
+                                {tradeAtPoint.quantity} shares @ ${(tradeAtPoint.price as number)?.toFixed(2)}
+                              </p>
+                              <p className="text-xs font-semibold">
+                                Total: ${(tradeAtPoint.total_value as number)?.toLocaleString()}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+                    return null;
                   }}
                 />
                 {tradingLogs.filter(log => log.timestamp).map((log) => {
