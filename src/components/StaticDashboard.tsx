@@ -529,14 +529,14 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                         </span>
                         <span className="text-xs text-gray-900">{log.symbol as string}</span>
                         {isPending && (
-                          <span className="text-xs text-amber-600 font-semibold">(Pending)</span>
+                          <span className="text-xs text-gray-500 font-semibold">(Pending)</span>
                         )}
                       </div>
                       <div className="flex items-center space-x-2">
                         {isPending ? (
                           <>
                             <span className="text-xs text-gray-600">{log.quantity as number} shares</span>
-                            <span className="text-xs text-amber-600 font-medium italic">Awaiting fill</span>
+                            <span className="text-xs text-gray-500 font-medium italic">Awaiting fill</span>
                           </>
                         ) : (
                           <>
