@@ -528,7 +528,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                     </div>
                     <div className="flex items-center space-x-2">
                       <span className="text-xs text-gray-600">{log.quantity as number} @ ${(log.price as number | undefined)?.toFixed(2)}</span>
-                      <span className={`text-xs font-medium ${log.action === 'SELL' ? 'text-red-600' : 'text-gray-900'}`}>
+                      <span className="text-xs text-gray-900 font-medium">
                         {log.action === 'SELL' ? '-' : ''}${(log.total_value as number | undefined)?.toLocaleString()}
                       </span>
                     </div>
