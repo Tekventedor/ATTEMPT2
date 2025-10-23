@@ -506,35 +506,51 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
             </div>
 
             <div className="space-y-1.5 max-h-[500px] overflow-y-auto">
-              {tradingLogs.slice(0, 20).map((log) => (
-                <div key={log.id as string} className="bg-gray-50 rounded-lg p-2 border border-gray-200 hover:bg-gray-100 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      {log.action === 'BUY' ? (
-                        <TrendingUp className="w-3 h-3 text-green-600 flex-shrink-0" />
-                      ) : log.action === 'SELL' ? (
-                        <TrendingDown className="w-3 h-3 text-red-600 flex-shrink-0" />
-                      ) : (
-                        <Activity className="w-3 h-3 text-gray-600 flex-shrink-0" />
-                      )}
-                      <span className={`text-xs font-semibold ${
-                        log.action === 'BUY' ? 'text-green-600' :
-                        log.action === 'SELL' ? 'text-red-600' :
-                        'text-gray-600'
-                      }`}>
-                        {log.action as string}
-                      </span>
-                      <span className="text-xs text-gray-900">{log.symbol as string}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs text-gray-600">{log.quantity as number} @ ${(log.price as number | undefined)?.toFixed(2)}</span>
-                      <span className="text-xs text-gray-900 font-medium">
-                        {log.action === 'SELL' ? '-' : ''}${(log.total_value as number | undefined)?.toLocaleString()}
-                      </span>
+              {tradingLogs.slice(0, 20).map((log) => {
+                const isPending = !log.price || log.price === null;
+
+                return (
+                  <div key={log.id as string} className="bg-gray-50 rounded-lg p-2 border border-gray-200 hover:bg-gray-100 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        {log.action === 'BUY' ? (
+                          <TrendingUp className="w-3 h-3 text-green-600 flex-shrink-0" />
+                        ) : log.action === 'SELL' ? (
+                          <TrendingDown className="w-3 h-3 text-red-600 flex-shrink-0" />
+                        ) : (
+                          <Activity className="w-3 h-3 text-gray-600 flex-shrink-0" />
+                        )}
+                        <span className={`text-xs font-semibold ${
+                          log.action === 'BUY' ? 'text-green-600' :
+                          log.action === 'SELL' ? 'text-red-600' :
+                          'text-gray-600'
+                        }`}>
+                          {log.action as string}
+                        </span>
+                        <span className="text-xs text-gray-900">{log.symbol as string}</span>
+                        {isPending && (
+                          <span className="text-xs text-amber-600 font-semibold">(Pending)</span>
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {isPending ? (
+                          <>
+                            <span className="text-xs text-gray-600">{log.quantity as number} shares</span>
+                            <span className="text-xs text-amber-600 font-medium italic">Awaiting fill</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-xs text-gray-600">{log.quantity as number} @ ${(log.price as number | undefined)?.toFixed(2)}</span>
+                            <span className="text-xs text-gray-900 font-medium">
+                              {log.action === 'SELL' ? '-' : ''}${(log.total_value as number | undefined)?.toLocaleString()}
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {tradingLogs.length === 0 && (
                 <div className="text-center py-8 text-gray-500">
                   <Activity className="w-8 h-8 mx-auto mb-2 opacity-50" />
