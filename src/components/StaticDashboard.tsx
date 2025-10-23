@@ -594,8 +594,8 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                     if (active && payload && payload.length) {
                       const data = payload[0].payload;
 
-                      // Find if there's a trade at this point
-                      const tradeAtPoint = tradingLogs.find(log => {
+                      // Find ALL trades at this point
+                      const tradesAtPoint = tradingLogs.filter(log => {
                         if (!log.timestamp) return false;
                         const tradeTimestamp = new Date(log.timestamp as string).getTime();
                         const closestPoint = portfolioHistory.reduce((prev, curr) => {
@@ -607,24 +607,26 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                       });
 
                       return (
-                        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg max-w-xs">
                           <p className="text-gray-600 text-xs mb-1">{data.date}</p>
                           <p className="text-gray-900 font-semibold">
                             Portfolio Value: ${data.value.toLocaleString()}
                           </p>
-                          {tradeAtPoint && (
-                            <div className={`mt-2 pt-2 border-t border-gray-200 ${
-                              tradeAtPoint.action === 'BUY' ? 'text-green-600' : 'text-red-600'
-                            }`}>
-                              <p className="font-bold text-sm">
-                                {tradeAtPoint.action} {tradeAtPoint.symbol}
-                              </p>
-                              <p className="text-xs">
-                                {tradeAtPoint.quantity} shares @ ${(tradeAtPoint.price as number)?.toFixed(2)}
-                              </p>
-                              <p className="text-xs font-semibold">
-                                Total: ${(tradeAtPoint.total_value as number)?.toLocaleString()}
-                              </p>
+                          {tradesAtPoint.length > 0 && (
+                            <div className="mt-2 pt-2 border-t border-gray-200 space-y-2">
+                              {tradesAtPoint.map((trade, idx) => (
+                                <div key={idx} className={trade.action === 'BUY' ? 'text-green-600' : 'text-red-600'}>
+                                  <p className="font-bold text-sm">
+                                    {trade.action} {trade.symbol}
+                                  </p>
+                                  <p className="text-xs">
+                                    {trade.quantity} shares @ ${(trade.price as number)?.toFixed(2)}
+                                  </p>
+                                  <p className="text-xs font-semibold">
+                                    Total: ${(trade.total_value as number)?.toLocaleString()}
+                                  </p>
+                                </div>
+                              ))}
                             </div>
                           )}
                         </div>
@@ -790,8 +792,8 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                     if (active && payload && payload.length) {
                       const data = payload[0].payload;
 
-                      // Find if there's a trade at this point
-                      const tradeAtPoint = tradingLogs.find(log => {
+                      // Find ALL trades at this point
+                      const tradesAtPoint = tradingLogs.filter(log => {
                         if (!log.timestamp) return false;
                         const tradeTimestamp = new Date(log.timestamp as string).getTime();
                         const closestPoint = portfolioHistory.reduce((prev, curr) => {
@@ -803,7 +805,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                       });
 
                       return (
-                        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg max-w-xs">
                           <p className="text-gray-600 text-xs mb-1">{data.date}</p>
                           <p className="text-purple-600 font-semibold text-sm">
                             AI: {data.portfolioReturn >= 0 ? '+' : ''}{data.portfolioReturn.toFixed(2)}%
@@ -811,19 +813,21 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                           <p className="text-cyan-600 font-semibold text-sm">
                             S&P 500: {data.spyReturn >= 0 ? '+' : ''}{data.spyReturn.toFixed(2)}%
                           </p>
-                          {tradeAtPoint && (
-                            <div className={`mt-2 pt-2 border-t border-gray-200 ${
-                              tradeAtPoint.action === 'BUY' ? 'text-green-600' : 'text-red-600'
-                            }`}>
-                              <p className="font-bold text-sm">
-                                {tradeAtPoint.action} {tradeAtPoint.symbol}
-                              </p>
-                              <p className="text-xs">
-                                {tradeAtPoint.quantity} shares @ ${(tradeAtPoint.price as number)?.toFixed(2)}
-                              </p>
-                              <p className="text-xs font-semibold">
-                                Total: ${(tradeAtPoint.total_value as number)?.toLocaleString()}
-                              </p>
+                          {tradesAtPoint.length > 0 && (
+                            <div className="mt-2 pt-2 border-t border-gray-200 space-y-2">
+                              {tradesAtPoint.map((trade, idx) => (
+                                <div key={idx} className={trade.action === 'BUY' ? 'text-green-600' : 'text-red-600'}>
+                                  <p className="font-bold text-sm">
+                                    {trade.action} {trade.symbol}
+                                  </p>
+                                  <p className="text-xs">
+                                    {trade.quantity} shares @ ${(trade.price as number)?.toFixed(2)}
+                                  </p>
+                                  <p className="text-xs font-semibold">
+                                    Total: ${(trade.total_value as number)?.toLocaleString()}
+                                  </p>
+                                </div>
+                              ))}
                             </div>
                           )}
                         </div>
@@ -962,8 +966,8 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                     if (active && payload && payload.length) {
                       const data = payload[0].payload;
 
-                      // Find if there's a trade at this point
-                      const tradeAtPoint = tradingLogs.find(log => {
+                      // Find ALL trades at this point
+                      const tradesAtPoint = tradingLogs.filter(log => {
                         if (!log.timestamp) return false;
                         const tradeTimestamp = new Date(log.timestamp as string).getTime();
                         const closestPoint = portfolioHistory.reduce((prev, curr) => {
@@ -975,7 +979,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                       });
 
                       return (
-                        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg max-w-xs">
                           <p className="text-gray-600 text-xs mb-1">{data.date}</p>
                           <p className="text-purple-600 font-semibold text-sm">
                             AI: {data.portfolioReturn >= 0 ? '+' : ''}{data.portfolioReturn.toFixed(2)}%
@@ -983,19 +987,21 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                           <p className="text-red-600 font-semibold text-sm">
                             NASDAQ-100: {data.qqqReturn >= 0 ? '+' : ''}{data.qqqReturn.toFixed(2)}%
                           </p>
-                          {tradeAtPoint && (
-                            <div className={`mt-2 pt-2 border-t border-gray-200 ${
-                              tradeAtPoint.action === 'BUY' ? 'text-green-600' : 'text-red-600'
-                            }`}>
-                              <p className="font-bold text-sm">
-                                {tradeAtPoint.action} {tradeAtPoint.symbol}
-                              </p>
-                              <p className="text-xs">
-                                {tradeAtPoint.quantity} shares @ ${(tradeAtPoint.price as number)?.toFixed(2)}
-                              </p>
-                              <p className="text-xs font-semibold">
-                                Total: ${(tradeAtPoint.total_value as number)?.toLocaleString()}
-                              </p>
+                          {tradesAtPoint.length > 0 && (
+                            <div className="mt-2 pt-2 border-t border-gray-200 space-y-2">
+                              {tradesAtPoint.map((trade, idx) => (
+                                <div key={idx} className={trade.action === 'BUY' ? 'text-green-600' : 'text-red-600'}>
+                                  <p className="font-bold text-sm">
+                                    {trade.action} {trade.symbol}
+                                  </p>
+                                  <p className="text-xs">
+                                    {trade.quantity} shares @ ${(trade.price as number)?.toFixed(2)}
+                                  </p>
+                                  <p className="text-xs font-semibold">
+                                    Total: ${(trade.total_value as number)?.toLocaleString()}
+                                  </p>
+                                </div>
+                              ))}
                             </div>
                           )}
                         </div>
