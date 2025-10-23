@@ -147,6 +147,76 @@ export async function GET(request: NextRequest) {
         }
       }
 
+      case 'qqq-bars': {
+        // Get QQQ (NASDAQ-100) historical bars from Twelve Data API with Vercel KV caching
+        const start = searchParams.get('start');
+        const end = searchParams.get('end');
+
+        if (!start || !end) {
+          return NextResponse.json({ error: 'Missing start or end date' }, { status: 400 });
+        }
+
+        // Create cache key from date range
+        const cacheKey = `qqq-bars:${start.split('T')[0]}:${end.split('T')[0]}`;
+
+        try {
+          // Try to get cached data from Vercel KV (if configured)
+          let cachedData = null;
+          try {
+            cachedData = await kv.get<{ bars: Array<{ t: string; c: number }> }>(cacheKey);
+          } catch (kvError) {
+            console.log('⚠️ Vercel KV not configured, fetching fresh data');
+          }
+
+          if (cachedData) {
+            console.log('📦 Returning cached QQQ data from Vercel KV');
+            return NextResponse.json(cachedData);
+          }
+
+          // Fetch fresh data from Twelve Data API
+          console.log('🌐 Fetching fresh QQQ data from Twelve Data API');
+          const twelveDataUrl = `https://api.twelvedata.com/time_series?symbol=QQQ&interval=1h&start_date=${start.split('T')[0]}&end_date=${end.split('T')[0]}&apikey=${process.env.TWELVE_DATA_API_KEY}&format=JSON`;
+
+          const response = await fetch(twelveDataUrl);
+
+          if (!response.ok) {
+            console.error('Twelve Data API error:', response.status, await response.text());
+            return NextResponse.json({ bars: null }, { status: 200 });
+          }
+
+          const data = await response.json();
+
+          console.log('Twelve Data QQQ response:', JSON.stringify(data).substring(0, 500));
+
+          // Twelve Data returns: { values: [{ datetime: "2024-10-10 09:30:00", close: "573.45", ... }] }
+          if (data?.values && Array.isArray(data.values) && data.values.length > 0) {
+            const bars = data.values.reverse().map((bar: { datetime: string; close: string }) => ({
+              t: new Date(bar.datetime).toISOString(),
+              c: parseFloat(bar.close),
+            }));
+            console.log(`Twelve Data: Returning ${bars.length} QQQ bars`);
+
+            const responseData = { bars };
+
+            // Cache in Vercel KV with 1 hour expiration (if configured)
+            try {
+              await kv.set(cacheKey, responseData, { ex: CACHE_DURATION_SECONDS });
+              console.log(`✅ Cached QQQ data in Vercel KV for 1 hour`);
+            } catch (kvError) {
+              console.log('⚠️ Vercel KV not configured, skipping cache');
+            }
+
+            return NextResponse.json(responseData);
+          }
+
+          console.log('Twelve Data: No valid QQQ data returned');
+          return NextResponse.json({ bars: null });
+        } catch (error) {
+          console.error('QQQ bars fetch error:', error);
+          return NextResponse.json({ bars: null }, { status: 200 });
+        }
+      }
+
       default:
         return NextResponse.json({ error: 'Invalid endpoint' }, { status: 400 });
     }

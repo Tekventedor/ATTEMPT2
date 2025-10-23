@@ -55,6 +55,9 @@ interface SnapshotData {
   spyData: {
     bars: Array<{ t: string; c: number }>;
   } | null;
+  qqqData: {
+    bars: Array<{ t: string; c: number }>;
+  } | null;
 }
 
 export default function TradingDashboard() {
@@ -97,8 +100,9 @@ export default function TradingDashboard() {
       const ordersData = await fetchAlpacaData('orders');
       const historyData = await fetchAlpacaData('portfolio-history');
 
-      // Fetch SPY data if we have portfolio history
+      // Fetch SPY and QQQ data if we have portfolio history
       let spyData = null;
+      let qqqData = null;
       if (historyData?.equity && historyData?.timestamp &&
           Array.isArray(historyData.equity) && historyData.equity.length > 0) {
 
@@ -111,12 +115,23 @@ export default function TradingDashboard() {
         const startISO = startDate.toISOString();
         const endISO = endDate.toISOString();
 
+        // Fetch SPY data
         const spyResponse = await fetch(`/api/alpaca?endpoint=spy-bars&start=${startISO}&end=${endISO}`);
 
         if (spyResponse.ok) {
           const spyHistory = await spyResponse.json();
           if (spyHistory && spyHistory.bars && Array.isArray(spyHistory.bars) && spyHistory.bars.length > 0) {
             spyData = spyHistory;
+          }
+        }
+
+        // Fetch QQQ data
+        const qqqResponse = await fetch(`/api/alpaca?endpoint=qqq-bars&start=${startISO}&end=${endISO}`);
+
+        if (qqqResponse.ok) {
+          const qqqHistory = await qqqResponse.json();
+          if (qqqHistory && qqqHistory.bars && Array.isArray(qqqHistory.bars) && qqqHistory.bars.length > 0) {
+            qqqData = qqqHistory;
           }
         }
       }
@@ -149,7 +164,8 @@ export default function TradingDashboard() {
         positions,
         portfolioHistory: historyData || { equity: [], timestamp: [] },
         orders: ordersData || [],
-        spyData
+        spyData,
+        qqqData
       };
 
       setSnapshotData(snapshot);

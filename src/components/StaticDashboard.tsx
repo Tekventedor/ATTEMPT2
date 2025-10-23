@@ -55,6 +55,10 @@ interface SPYData {
   bars: Array<{ t: string; c: number }>;
 }
 
+interface QQQData {
+  bars: Array<{ t: string; c: number }>;
+}
+
 interface SnapshotData {
   timestamp: string;
   account: Account;
@@ -62,6 +66,7 @@ interface SnapshotData {
   portfolioHistory: PortfolioHistory;
   orders: Order[];
   spyData: SPYData | null;
+  qqqData: QQQData | null;
 }
 
 interface StaticDashboardProps {
@@ -75,6 +80,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
   const [tradingLogs, setTradingLogs] = useState<Record<string, unknown>[]>([]);
   const [portfolioHistory, setPortfolioHistory] = useState<Array<{date: string, value: number, pnl: number, timestamp: number}>>([]);
   const [sp500Data, setSp500Data] = useState<Array<{date: string, spyReturn: number, portfolioReturn: number}>>([]);
+  const [nasdaq100Data, setNasdaq100Data] = useState<Array<{date: string, qqqReturn: number, portfolioReturn: number}>>([]);
 
   useEffect(() => {
     setMounted(true);
@@ -207,6 +213,67 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
           }
 
           setSp500Data(normalizedData);
+        }
+      }
+
+      // Process QQQ comparison data
+      if (data.qqqData?.bars && formattedHistory.length > 0) {
+        const qqqBars = data.qqqData.bars;
+        const initialPortfolioValue = formattedHistory[0].value;
+        const firstPortfolioTimestamp = formattedHistory[0].timestamp;
+
+        // Find initial QQQ price
+        const validQqqBars = qqqBars.filter((bar: { t: string; c: number }) =>
+          new Date(bar.t).getTime() <= firstPortfolioTimestamp
+        );
+
+        if (validQqqBars.length > 0) {
+          const initialQqqBar = validQqqBars.reduce((prev: { t: string; c: number }, curr: { t: string; c: number }) => {
+            const prevDiff = firstPortfolioTimestamp - new Date(prev.t).getTime();
+            const currDiff = firstPortfolioTimestamp - new Date(curr.t).getTime();
+            return currDiff < prevDiff && currDiff >= 0 ? curr : prev;
+          });
+          const initialQqqPrice = initialQqqBar.c;
+
+          // Calculate comparison data
+          const rawComparisonData = formattedHistory.map((item) => {
+            const itemTimestamp = item.timestamp;
+            const validBarsForPoint = qqqBars.filter((bar: { t: string; c: number }) =>
+              new Date(bar.t).getTime() <= itemTimestamp
+            );
+
+            const closestQqqBar = validBarsForPoint.length > 0
+              ? validBarsForPoint.reduce((prev: { t: string; c: number }, curr: { t: string; c: number }) => {
+                  const prevTime = new Date(prev.t).getTime();
+                  const currTime = new Date(curr.t).getTime();
+                  return currTime > prevTime ? curr : prev;
+                })
+              : qqqBars[0];
+
+            const qqqReturn = ((closestQqqBar.c - initialQqqPrice) / initialQqqPrice) * 100;
+            const portfolioReturn = ((item.value - initialPortfolioValue) / initialPortfolioValue) * 100;
+
+            return {
+              date: item.date,
+              qqqReturn,
+              portfolioReturn
+            };
+          });
+
+          // Normalize to start at 0
+          let normalizedData: Array<{date: string, qqqReturn: number, portfolioReturn: number}> = [];
+          if (rawComparisonData.length > 0) {
+            const firstQqqReturn = rawComparisonData[0].qqqReturn;
+            const firstPortfolioReturn = rawComparisonData[0].portfolioReturn;
+
+            normalizedData = rawComparisonData.map((point, idx) => ({
+              date: point.date,
+              qqqReturn: idx === 0 ? 0 : point.qqqReturn - firstQqqReturn,
+              portfolioReturn: idx === 0 ? 0 : point.portfolioReturn - firstPortfolioReturn
+            }));
+          }
+
+          setNasdaq100Data(normalizedData);
         }
       }
     }
@@ -739,6 +806,133 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-0.5 bg-cyan-400"></div>
                 <span className="text-gray-700">S&P 500 Index</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* AI Performance vs NASDAQ-100 */}
+        {nasdaq100Data.length > 0 && (
+          <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">AI Performance vs. NASDAQ-100</h3>
+                <p className="text-xs text-gray-600 mt-1">Market hours comparison</p>
+              </div>
+              {nasdaq100Data.length > 0 && (() => {
+                const aiReturn = nasdaq100Data[nasdaq100Data.length - 1].portfolioReturn;
+                const qqqReturn = nasdaq100Data[nasdaq100Data.length - 1].qqqReturn;
+                const outperformance = aiReturn - qqqReturn;
+
+                return (
+                  <div className="flex flex-col items-end space-y-1 text-xs">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-1">
+                        <span className="text-gray-600">AI:</span>
+                        <span className={`font-semibold ${aiReturn >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {aiReturn >= 0 ? '+' : ''}{aiReturn.toFixed(2)}%
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <span className="text-gray-600">NASDAQ-100:</span>
+                        <span className={`font-semibold ${qqqReturn >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {qqqReturn >= 0 ? '+' : ''}{qqqReturn.toFixed(2)}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <span className="text-gray-600">Outperformance:</span>
+                      <span className={`font-semibold ${outperformance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {outperformance >= 0 ? '+' : ''}{outperformance.toFixed(2)}%
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+            <ResponsiveContainer width="100%" height={350}>
+              <LineChart data={nasdaq100Data}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                <XAxis
+                  dataKey="date"
+                  stroke="#6B7280"
+                  style={{ fontSize: '12px' }}
+                  interval="preserveStartEnd"
+                  minTickGap={50}
+                />
+                <YAxis
+                  stroke="#6B7280"
+                  tickFormatter={(value) => `${value.toFixed(1)}%`}
+                  style={{ fontSize: '12px' }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E5E7EB',
+                    borderRadius: '8px',
+                    color: '#111827'
+                  }}
+                />
+                {tradingLogs.filter(log => log.timestamp).map((log) => {
+                  const tradeTimestamp = new Date(log.timestamp as string).getTime();
+                  const isBuy = log.action === 'BUY';
+
+                  // Safety checks - need data points to match against
+                  if (nasdaq100Data.length === 0 || portfolioHistory.length === 0) return null;
+
+                  // Find closest data point in portfolio history first
+                  const closestPoint = portfolioHistory.reduce((prev, curr) => {
+                    const prevDiff = Math.abs(prev.timestamp - tradeTimestamp);
+                    const currDiff = Math.abs(curr.timestamp - tradeTimestamp);
+                    return currDiff < prevDiff ? curr : prev;
+                  });
+
+                  // Find the corresponding nasdaq100Data point by matching date
+                  const nasdaq100Point = nasdaq100Data.find(h => h.date === closestPoint.date);
+                  if (!nasdaq100Point) return null;
+
+                  return (
+                    <ReferenceLine
+                      key={log.id as string}
+                      x={nasdaq100Point.date}
+                      stroke={isBuy ? '#10b981' : '#ef4444'}
+                      strokeWidth={2}
+                      strokeDasharray="3 3"
+                      label={{
+                        value: isBuy ? '▲' : '▼',
+                        position: 'top',
+                        fill: isBuy ? '#10b981' : '#ef4444',
+                        fontSize: 14,
+                      }}
+                    />
+                  );
+                })}
+                <Line
+                  type="monotone"
+                  dataKey="portfolioReturn"
+                  stroke="#8B5CF6"
+                  strokeWidth={3}
+                  dot={false}
+                  name="AI Portfolio"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="qqqReturn"
+                  stroke="#EF4444"
+                  strokeWidth={3}
+                  dot={false}
+                  name="NASDAQ-100 Index"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+            <div className="mt-4 flex items-center justify-center space-x-6 text-sm">
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-0.5 bg-purple-500"></div>
+                <span className="text-gray-700">AI Portfolio</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-0.5 bg-red-500"></div>
+                <span className="text-gray-700">NASDAQ-100 Index</span>
               </div>
             </div>
           </div>
