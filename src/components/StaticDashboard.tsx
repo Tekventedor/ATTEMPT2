@@ -542,7 +542,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                           <>
                             <span className="text-xs text-gray-600">{log.quantity as number} @ ${(log.price as number | undefined)?.toFixed(2)}</span>
                             <span className="text-xs text-gray-900 font-medium">
-                              {log.action === 'SELL' ? '-' : ''}${(log.total_value as number | undefined)?.toLocaleString()}
+                              ${(log.total_value as number | undefined)?.toLocaleString()}
                             </span>
                           </>
                         )}
@@ -641,7 +641,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                                     {trade.quantity} shares @ ${(trade.price as number)?.toFixed(2)}
                                   </p>
                                   <p className="text-xs font-semibold">
-                                    Total: {trade.action === 'SELL' ? '-' : ''}${(trade.total_value as number)?.toLocaleString()}
+                                    Total: ${(trade.total_value as number)?.toLocaleString()}
                                   </p>
                                 </div>
                               ))}
@@ -842,7 +842,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                                     {trade.quantity} shares @ ${(trade.price as number)?.toFixed(2)}
                                   </p>
                                   <p className="text-xs font-semibold">
-                                    Total: {trade.action === 'SELL' ? '-' : ''}${(trade.total_value as number)?.toLocaleString()}
+                                    Total: ${(trade.total_value as number)?.toLocaleString()}
                                   </p>
                                 </div>
                               ))}
@@ -1016,7 +1016,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                                     {trade.quantity} shares @ ${(trade.price as number)?.toFixed(2)}
                                   </p>
                                   <p className="text-xs font-semibold">
-                                    Total: {trade.action === 'SELL' ? '-' : ''}${(trade.total_value as number)?.toLocaleString()}
+                                    Total: ${(trade.total_value as number)?.toLocaleString()}
                                   </p>
                                 </div>
                               ))}
