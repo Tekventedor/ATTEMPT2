@@ -87,6 +87,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
   const [sp500Data, setSp500Data] = useState<Array<{date: string, spyReturn: number, portfolioReturn: number}>>([]);
   const [nasdaq100Data, setNasdaq100Data] = useState<Array<{date: string, qqqReturn: number, portfolioReturn: number}>>([]);
   const [expandedLogIds, setExpandedLogIds] = useState<Set<string>>(new Set());
+  const [modalReasoning, setModalReasoning] = useState<{ text: string; ticker: string; timestamp: string } | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -621,15 +622,24 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                         className={`bg-gray-50 rounded-lg p-3 border border-gray-200 hover:bg-gray-100 transition-colors ${hasReasoning ? 'cursor-pointer' : ''}`}
                         onClick={() => {
                           if (hasReasoning) {
-                            setExpandedLogIds(prev => {
-                              const newSet = new Set(prev);
-                              if (newSet.has(log.id as string)) {
-                                newSet.delete(log.id as string);
-                              } else {
-                                newSet.add(log.id as string);
-                              }
-                              return newSet;
-                            });
+                            const logId = log.id as string;
+                            const isCurrentlyExpanded = expandedLogIds.has(logId);
+
+                            if (isCurrentlyExpanded) {
+                              // Second click: Open modal
+                              setModalReasoning({
+                                text: matchingReasoning.reasoning,
+                                ticker: log.symbol as string,
+                                timestamp: log.timestamp as string
+                              });
+                            } else {
+                              // First click: Expand in place
+                              setExpandedLogIds(prev => {
+                                const newSet = new Set(prev);
+                                newSet.add(logId);
+                                return newSet;
+                              });
+                            }
                           }
                         }}
                       >
@@ -1290,6 +1300,47 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
           )}
         </div>
       </div>
+
+      {/* Reasoning Modal */}
+      {modalReasoning && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => {
+            setModalReasoning(null);
+            // Also collapse the expanded state
+            setExpandedLogIds(new Set());
+          }}
+        >
+          <div
+            className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">{modalReasoning.ticker}</h3>
+                <p className="text-sm text-gray-500">
+                  {new Date(modalReasoning.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}{' '}
+                  {new Date(modalReasoning.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setModalReasoning(null);
+                  setExpandedLogIds(new Set());
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="text-gray-700 leading-relaxed">
+              {modalReasoning.text}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
