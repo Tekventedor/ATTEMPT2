@@ -318,7 +318,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
     const result: Record<string, string | number> = { date: point.date, total: point.value };
     positions.forEach(pos => {
       if (pos.symbol) {
-        const baseValue = pos.market_value;
+        const baseValue = Math.abs(pos.market_value); // Use absolute value for chart display
         const variation = Math.sin(index * 0.3) * (baseValue * 0.05);
         result[pos.symbol] = baseValue + variation;
       }
@@ -709,7 +709,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                   <Pie
                     data={positions.map(pos => ({
                       name: pos.symbol,
-                      value: pos.market_value
+                      value: Math.abs(pos.market_value) // Use absolute value for pie chart
                     }))}
                     cx="50%"
                     cy="50%"
