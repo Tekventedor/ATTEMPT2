@@ -617,7 +617,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                     return (
                       <div
                         key={log.id as string}
-                        className={`bg-gray-50 rounded-lg p-4 border border-gray-200 hover:bg-gray-100 transition-colors ${hasReasoning ? 'cursor-pointer' : ''}`}
+                        className={`bg-gray-50 rounded-lg p-3 border border-gray-200 hover:bg-gray-100 transition-colors ${hasReasoning ? 'cursor-pointer' : ''}`}
                         onClick={() => {
                           if (hasReasoning) {
                             setExpandedLogIds(prev => {
@@ -672,31 +672,12 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
 
                         {/* Reasoning text */}
                         {hasReasoning && (
-                          <div className="mt-2 pt-2 border-t border-gray-200">
-                            <p className={`text-xs text-gray-600 leading-relaxed ${
-                              isExpanded ? '' : 'line-clamp-2'
+                          <div className="mt-1">
+                            <p className={`text-xs text-gray-500 leading-snug ${
+                              isExpanded ? '' : 'line-clamp-1'
                             }`}>
                               {matchingReasoning.reasoning}
                             </p>
-                            {matchingReasoning.reasoning.length > 100 && (
-                              <button
-                                className="text-xs text-purple-600 hover:text-purple-700 mt-1 font-medium"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setExpandedLogIds(prev => {
-                                    const newSet = new Set(prev);
-                                    if (newSet.has(log.id as string)) {
-                                      newSet.delete(log.id as string);
-                                    } else {
-                                      newSet.add(log.id as string);
-                                    }
-                                    return newSet;
-                                  });
-                                }}
-                              >
-                                {isExpanded ? '← Show less' : 'Read more →'}
-                              </button>
-                            )}
                           </div>
                         )}
                       </div>
