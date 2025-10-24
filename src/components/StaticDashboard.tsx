@@ -525,114 +525,175 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
             </div>
 
             <div className="space-y-1.5 max-h-[500px] overflow-y-auto">
-              {tradingLogs.slice(0, 20).map((log) => {
-                const isPending = !log.price || log.price === null;
-
-                // Find matching reasoning by timestamp and ticker
-                const matchingReasoning = data.reasoning?.find((r) => {
-                  if (!log.timestamp || !r.timestamp) return false;
-
-                  const logDate = new Date(log.timestamp as string);
-                  const reasoningDate = new Date(r.timestamp);
-
-                  // Check if ticker matches and timestamps are within 1 hour
-                  const timeDiff = Math.abs(logDate.getTime() - reasoningDate.getTime());
-                  const oneHour = 60 * 60 * 1000;
-
-                  return r.ticker === log.symbol && timeDiff < oneHour;
-                });
-
-                const isExpanded = expandedLogIds.has(log.id as string);
-                const hasReasoning = !!matchingReasoning;
-
-                return (
-                  <div
-                    key={log.id as string}
-                    className={`bg-gray-50 rounded-lg p-4 border border-gray-200 hover:bg-gray-100 transition-colors ${hasReasoning ? 'cursor-pointer' : ''}`}
-                    onClick={() => {
-                      if (hasReasoning) {
-                        setExpandedLogIds(prev => {
-                          const newSet = new Set(prev);
-                          if (newSet.has(log.id as string)) {
-                            newSet.delete(log.id as string);
-                          } else {
-                            newSet.add(log.id as string);
-                          }
-                          return newSet;
-                        });
-                      }
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        {log.action === 'BUY' ? (
-                          <TrendingUp className="w-3 h-3 text-green-600 flex-shrink-0" />
-                        ) : log.action === 'SELL' ? (
-                          <TrendingDown className="w-3 h-3 text-red-600 flex-shrink-0" />
-                        ) : (
-                          <Activity className="w-3 h-3 text-gray-600 flex-shrink-0" />
-                        )}
-                        <span className={`text-xs font-semibold ${
-                          log.action === 'BUY' ? 'text-green-600' :
-                          log.action === 'SELL' ? 'text-red-600' :
-                          'text-gray-600'
-                        }`}>
-                          {log.action as string}
-                        </span>
-                        <span className="text-xs text-gray-900">{log.symbol as string}</span>
-                        {isPending && (
-                          <span className="text-xs text-gray-500 font-semibold">(Pending)</span>
-                        )}
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {isPending ? (
-                          <>
-                            <span className="text-xs text-gray-600">{log.quantity as number} shares</span>
-                            <span className="text-xs text-gray-500 font-medium italic">Awaiting fill</span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="text-xs text-gray-600">{log.quantity as number} @ ${(log.price as number | undefined)?.toFixed(2)}</span>
-                            <span className="text-xs text-gray-900 font-medium">
-                              ${(log.total_value as number | undefined)?.toLocaleString()}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Reasoning text */}
-                    {hasReasoning && (
-                      <div className="mt-2 pt-2 border-t border-gray-200">
-                        <p className={`text-xs text-gray-600 leading-relaxed ${
-                          isExpanded ? '' : 'line-clamp-2'
-                        }`}>
-                          {matchingReasoning.reasoning}
-                        </p>
-                        {matchingReasoning.reasoning.length > 100 && (
-                          <button
-                            className="text-xs text-purple-600 hover:text-purple-700 mt-1 font-medium"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setExpandedLogIds(prev => {
-                                const newSet = new Set(prev);
-                                if (newSet.has(log.id as string)) {
-                                  newSet.delete(log.id as string);
-                                } else {
-                                  newSet.add(log.id as string);
-                                }
-                                return newSet;
-                              });
-                            }}
-                          >
-                            {isExpanded ? '← Show less' : 'Read more →'}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
+              {(() => {
+                // Separate research entries (tickers like ^SPX) from trade-related reasoning
+                const tradeSymbols = new Set(tradingLogs.map(log => log.symbol as string));
+                const researchEntries = (data.reasoning || []).filter(r =>
+                  r.ticker.startsWith('^') || !tradeSymbols.has(r.ticker)
                 );
-              })}
+
+                // Create combined list of trades and research entries
+                const combinedLogs: Array<{
+                  type: 'trade' | 'research';
+                  timestamp: string;
+                  data: any;
+                }> = [
+                  ...tradingLogs.slice(0, 20).map(log => ({
+                    type: 'trade' as const,
+                    timestamp: log.timestamp as string,
+                    data: log
+                  })),
+                  ...researchEntries.map((r, idx) => ({
+                    type: 'research' as const,
+                    timestamp: r.timestamp,
+                    data: { ...r, id: `research-${idx}` }
+                  }))
+                ];
+
+                // Sort by timestamp descending (most recent first)
+                combinedLogs.sort((a, b) =>
+                  new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+                );
+
+                return combinedLogs.map((item, index) => {
+                  if (item.type === 'research') {
+                    // Research entry display
+                    const research = item.data;
+                    return (
+                      <div
+                        key={research.id}
+                        className="bg-gray-50 rounded-lg p-4 border border-gray-200"
+                      >
+                        <div className="flex items-start space-x-2">
+                          <Activity className="w-3 h-3 text-gray-400 flex-shrink-0 mt-0.5" />
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <span className="text-xs font-semibold text-gray-500 italic">
+                                Research: {research.ticker}
+                              </span>
+                              <span className="text-xs text-gray-400">
+                                {new Date(research.timestamp).toLocaleString()}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-500 italic leading-relaxed">
+                              {research.reasoning}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  } else {
+                    // Trade entry display
+                    const log = item.data;
+                    const isPending = !log.price || log.price === null;
+
+                    // Find matching reasoning by timestamp and ticker
+                    const matchingReasoning = data.reasoning?.find((r) => {
+                      if (!log.timestamp || !r.timestamp) return false;
+
+                      const logDate = new Date(log.timestamp as string);
+                      const reasoningDate = new Date(r.timestamp);
+
+                      // Check if ticker matches and timestamps are within 1 hour
+                      const timeDiff = Math.abs(logDate.getTime() - reasoningDate.getTime());
+                      const oneHour = 60 * 60 * 1000;
+
+                      return r.ticker === log.symbol && timeDiff < oneHour;
+                    });
+
+                    const isExpanded = expandedLogIds.has(log.id as string);
+                    const hasReasoning = !!matchingReasoning;
+
+                    return (
+                      <div
+                        key={log.id as string}
+                        className={`bg-gray-50 rounded-lg p-4 border border-gray-200 hover:bg-gray-100 transition-colors ${hasReasoning ? 'cursor-pointer' : ''}`}
+                        onClick={() => {
+                          if (hasReasoning) {
+                            setExpandedLogIds(prev => {
+                              const newSet = new Set(prev);
+                              if (newSet.has(log.id as string)) {
+                                newSet.delete(log.id as string);
+                              } else {
+                                newSet.add(log.id as string);
+                              }
+                              return newSet;
+                            });
+                          }
+                        }}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            {log.action === 'BUY' ? (
+                              <TrendingUp className="w-3 h-3 text-green-600 flex-shrink-0" />
+                            ) : log.action === 'SELL' ? (
+                              <TrendingDown className="w-3 h-3 text-red-600 flex-shrink-0" />
+                            ) : (
+                              <Activity className="w-3 h-3 text-gray-600 flex-shrink-0" />
+                            )}
+                            <span className={`text-xs font-semibold ${
+                              log.action === 'BUY' ? 'text-green-600' :
+                              log.action === 'SELL' ? 'text-red-600' :
+                              'text-gray-600'
+                            }`}>
+                              {log.action as string}
+                            </span>
+                            <span className="text-xs text-gray-900">{log.symbol as string}</span>
+                            {isPending && (
+                              <span className="text-xs text-gray-500 font-semibold">(Pending)</span>
+                            )}
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            {isPending ? (
+                              <>
+                                <span className="text-xs text-gray-600">{log.quantity as number} shares</span>
+                                <span className="text-xs text-gray-500 font-medium italic">Awaiting fill</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-xs text-gray-600">{log.quantity as number} @ ${(log.price as number | undefined)?.toFixed(2)}</span>
+                                <span className="text-xs text-gray-900 font-medium">
+                                  ${(log.total_value as number | undefined)?.toLocaleString()}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Reasoning text */}
+                        {hasReasoning && (
+                          <div className="mt-2 pt-2 border-t border-gray-200">
+                            <p className={`text-xs text-gray-600 leading-relaxed ${
+                              isExpanded ? '' : 'line-clamp-2'
+                            }`}>
+                              {matchingReasoning.reasoning}
+                            </p>
+                            {matchingReasoning.reasoning.length > 100 && (
+                              <button
+                                className="text-xs text-purple-600 hover:text-purple-700 mt-1 font-medium"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedLogIds(prev => {
+                                    const newSet = new Set(prev);
+                                    if (newSet.has(log.id as string)) {
+                                      newSet.delete(log.id as string);
+                                    } else {
+                                      newSet.add(log.id as string);
+                                    }
+                                    return newSet;
+                                  });
+                                }}
+                              >
+                                {isExpanded ? '← Show less' : 'Read more →'}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                });
+              })()}
               {tradingLogs.length === 0 && (
                 <div className="text-center py-8 text-gray-500">
                   <Activity className="w-8 h-8 mx-auto mb-2 opacity-50" />
