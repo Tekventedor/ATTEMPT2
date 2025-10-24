@@ -572,7 +572,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                     return (
                       <div
                         key={research.id}
-                        className="bg-gray-50 rounded-lg p-4 border border-gray-200"
+                        className="bg-gray-50 rounded-lg p-3 border border-gray-200"
                       >
                         <div className="flex items-start space-x-2">
                           <Activity className="w-3 h-3 text-gray-400 flex-shrink-0 mt-0.5" />
@@ -582,7 +582,8 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                                 Research: {research.ticker}
                               </span>
                               <span className="text-xs text-gray-400">
-                                {new Date(research.timestamp).toLocaleString()}
+                                {new Date(research.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}{' '}
+                                {new Date(research.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
                               </span>
                             </div>
                             <p className="text-xs text-gray-500 italic leading-relaxed">
@@ -597,19 +598,19 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                     const log = item.data;
                     const isPending = !log.price || log.price === null;
 
-                    // Find matching reasoning by ticker (closest timestamp)
-                    const tickerReasonings = (data.reasoning || []).filter(r => r.ticker === log.symbol);
-                    const matchingReasoning = tickerReasonings.length > 0
-                      ? tickerReasonings.reduce((closest, current) => {
-                          if (!log.timestamp) return current;
+                    // Find matching reasoning by ticker and timestamp (within 1 hour)
+                    const matchingReasoning = (data.reasoning || []).find((r) => {
+                      if (!log.timestamp || !r.timestamp || r.ticker !== log.symbol) return false;
 
-                          const logDate = new Date(log.timestamp as string).getTime();
-                          const closestDiff = Math.abs(new Date(closest.timestamp).getTime() - logDate);
-                          const currentDiff = Math.abs(new Date(current.timestamp).getTime() - logDate);
+                      const logDate = new Date(log.timestamp as string);
+                      const reasoningDate = new Date(r.timestamp);
 
-                          return currentDiff < closestDiff ? current : closest;
-                        })
-                      : null;
+                      // Check if timestamps are within 1 hour
+                      const timeDiff = Math.abs(logDate.getTime() - reasoningDate.getTime());
+                      const oneHour = 60 * 60 * 1000;
+
+                      return timeDiff < oneHour;
+                    });
 
                     const isExpanded = expandedLogIds.has(log.id as string);
                     const hasReasoning = !!matchingReasoning;
@@ -649,6 +650,12 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                               {log.action as string}
                             </span>
                             <span className="text-xs text-gray-900">{log.symbol as string}</span>
+                            {log.timestamp && (
+                              <span className="text-xs text-gray-400">
+                                {new Date(log.timestamp as string).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}{' '}
+                                {new Date(log.timestamp as string).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                              </span>
+                            )}
                             {isPending && (
                               <span className="text-xs text-gray-500 font-semibold">(Pending)</span>
                             )}
