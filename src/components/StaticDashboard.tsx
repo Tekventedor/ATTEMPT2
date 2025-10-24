@@ -349,7 +349,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
               />
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">AI Trading Bot</h1>
-                <p className="text-xs text-gray-600">Snapshot from {new Date(data.timestamp).toLocaleString()}</p>
+                <p className="text-xs text-gray-600">Snapshot from {new Date(data.timestamp).toLocaleDateString()}</p>
               </div>
             </div>
           </div>
