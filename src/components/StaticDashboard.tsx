@@ -118,8 +118,56 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
       tags: [order.status],
       timestamp: order.submitted_at
     }));
-    console.log('📊 Trading logs with timestamps:', logs.filter(l => l.timestamp).length, 'out of', logs.length);
-    setTradingLogs(logs);
+
+    // Calculate position tracking for net effect display
+    // Sort logs chronologically to calculate cumulative positions
+    const sortedLogs = [...logs].sort((a, b) => {
+      if (!a.timestamp || !b.timestamp) return 0;
+      return new Date(a.timestamp as string).getTime() - new Date(b.timestamp as string).getTime();
+    });
+
+    const positionTracker: Record<string, number> = {};
+    const logsWithPositions = sortedLogs.map((log) => {
+      const symbol = log.symbol as string;
+      const quantity = log.quantity as number;
+      const action = log.action as string;
+
+      // Calculate position before trade
+      const positionBefore = positionTracker[symbol] || 0;
+
+      // Calculate position after trade
+      let positionAfter = positionBefore;
+      if (action === 'BUY') {
+        positionAfter = positionBefore + quantity;
+      } else if (action === 'SELL') {
+        positionAfter = positionBefore - quantity;
+      }
+
+      // Update tracker
+      positionTracker[symbol] = positionAfter;
+
+      return {
+        ...log,
+        positionBefore,
+        positionAfter
+      };
+    });
+
+    console.log('📊 Trading logs with timestamps:', logsWithPositions.filter(l => l.timestamp).length, 'out of', logsWithPositions.length);
+
+    // Log position tracking for debugging
+    const spyTrades = logsWithPositions.filter(log => log.symbol === 'SPY');
+    if (spyTrades.length > 0) {
+      console.log('🔍 SPY Position Tracking:', spyTrades.map(t => ({
+        action: t.action,
+        qty: t.quantity,
+        before: t.positionBefore,
+        after: t.positionAfter,
+        timestamp: t.timestamp
+      })));
+    }
+
+    setTradingLogs(logsWithPositions);
 
     // Process portfolio history
     if (data.portfolioHistory?.equity && data.portfolioHistory?.timestamp) {
@@ -458,8 +506,8 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                 <YAxis
                   stroke="#6B7280"
                   scale="log"
-                  domain={[1000, 50000]}
-                  ticks={[1000, 2000, 5000, 10000, 20000, 50000]}
+                  domain={[5000, 20000]}
+                  ticks={[5000, 7500, 10000, 15000, 20000]}
                   tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
                   style={{ fontSize: '12px' }}
                 />
@@ -562,9 +610,9 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                     return (
                       <div
                         key={reasoning.id}
-                        className={`rounded-lg p-3 border hover:bg-gray-100 transition-all cursor-pointer ${
+                        className={`rounded-lg p-3 border hover:bg-gray-100 transition-all cursor-pointer relative ${
                           isExpanded
-                            ? 'bg-white border-gray-300 shadow-lg backdrop-blur-sm'
+                            ? 'bg-white/95 backdrop-blur-md border-gray-400 shadow-2xl ring-2 ring-purple-200 z-10'
                             : 'bg-gray-50 border-gray-200'
                         }`}
                         onClick={() => {
@@ -741,19 +789,30 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                           </p>
                           {tradesAtPoint.length > 0 && (
                             <div className="mt-2 pt-2 border-t border-gray-200 space-y-2">
-                              {tradesAtPoint.map((trade, idx) => (
-                                <div key={idx} className={trade.action === 'BUY' ? 'text-green-600' : 'text-red-600'}>
-                                  <p className="font-bold text-sm">
-                                    {trade.action} {trade.symbol}
-                                  </p>
-                                  <p className="text-xs">
-                                    {trade.quantity} shares @ ${(trade.price as number)?.toFixed(2)}
-                                  </p>
-                                  <p className="text-xs font-semibold">
-                                    Total: ${(trade.total_value as number)?.toLocaleString()}
-                                  </p>
-                                </div>
-                              ))}
+                              {tradesAtPoint.map((trade, idx) => {
+                                const positionBefore = trade.positionBefore as number | undefined;
+                                const positionAfter = trade.positionAfter as number | undefined;
+
+                                return (
+                                  <div key={idx} className={trade.action === 'BUY' ? 'text-green-600' : 'text-red-600'}>
+                                    <p className="font-bold text-sm">
+                                      {trade.action} {trade.symbol}
+                                    </p>
+                                    {positionBefore !== undefined && positionAfter !== undefined && (
+                                      <p className="text-xs text-gray-600 mb-1">
+                                        Position: {positionBefore} → {positionAfter}
+                                        {positionAfter === 0 && ' (CLOSED)'}
+                                      </p>
+                                    )}
+                                    <p className="text-xs">
+                                      {trade.quantity} shares @ ${(trade.price as number)?.toFixed(2)}
+                                    </p>
+                                    <p className="text-xs font-semibold">
+                                      Total: ${(trade.total_value as number)?.toLocaleString()}
+                                    </p>
+                                  </div>
+                                );
+                              })}
                             </div>
                           )}
                         </div>
@@ -942,19 +1001,30 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                           </p>
                           {tradesAtPoint.length > 0 && (
                             <div className="mt-2 pt-2 border-t border-gray-200 space-y-2">
-                              {tradesAtPoint.map((trade, idx) => (
-                                <div key={idx} className={trade.action === 'BUY' ? 'text-green-600' : 'text-red-600'}>
-                                  <p className="font-bold text-sm">
-                                    {trade.action} {trade.symbol}
-                                  </p>
-                                  <p className="text-xs">
-                                    {trade.quantity} shares @ ${(trade.price as number)?.toFixed(2)}
-                                  </p>
-                                  <p className="text-xs font-semibold">
-                                    Total: ${(trade.total_value as number)?.toLocaleString()}
-                                  </p>
-                                </div>
-                              ))}
+                              {tradesAtPoint.map((trade, idx) => {
+                                const positionBefore = trade.positionBefore as number | undefined;
+                                const positionAfter = trade.positionAfter as number | undefined;
+
+                                return (
+                                  <div key={idx} className={trade.action === 'BUY' ? 'text-green-600' : 'text-red-600'}>
+                                    <p className="font-bold text-sm">
+                                      {trade.action} {trade.symbol}
+                                    </p>
+                                    {positionBefore !== undefined && positionAfter !== undefined && (
+                                      <p className="text-xs text-gray-600 mb-1">
+                                        Position: {positionBefore} → {positionAfter}
+                                        {positionAfter === 0 && ' (CLOSED)'}
+                                      </p>
+                                    )}
+                                    <p className="text-xs">
+                                      {trade.quantity} shares @ ${(trade.price as number)?.toFixed(2)}
+                                    </p>
+                                    <p className="text-xs font-semibold">
+                                      Total: ${(trade.total_value as number)?.toLocaleString()}
+                                    </p>
+                                  </div>
+                                );
+                              })}
                             </div>
                           )}
                         </div>
@@ -1116,19 +1186,30 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                           </p>
                           {tradesAtPoint.length > 0 && (
                             <div className="mt-2 pt-2 border-t border-gray-200 space-y-2">
-                              {tradesAtPoint.map((trade, idx) => (
-                                <div key={idx} className={trade.action === 'BUY' ? 'text-green-600' : 'text-red-600'}>
-                                  <p className="font-bold text-sm">
-                                    {trade.action} {trade.symbol}
-                                  </p>
-                                  <p className="text-xs">
-                                    {trade.quantity} shares @ ${(trade.price as number)?.toFixed(2)}
-                                  </p>
-                                  <p className="text-xs font-semibold">
-                                    Total: ${(trade.total_value as number)?.toLocaleString()}
-                                  </p>
-                                </div>
-                              ))}
+                              {tradesAtPoint.map((trade, idx) => {
+                                const positionBefore = trade.positionBefore as number | undefined;
+                                const positionAfter = trade.positionAfter as number | undefined;
+
+                                return (
+                                  <div key={idx} className={trade.action === 'BUY' ? 'text-green-600' : 'text-red-600'}>
+                                    <p className="font-bold text-sm">
+                                      {trade.action} {trade.symbol}
+                                    </p>
+                                    {positionBefore !== undefined && positionAfter !== undefined && (
+                                      <p className="text-xs text-gray-600 mb-1">
+                                        Position: {positionBefore} → {positionAfter}
+                                        {positionAfter === 0 && ' (CLOSED)'}
+                                      </p>
+                                    )}
+                                    <p className="text-xs">
+                                      {trade.quantity} shares @ ${(trade.price as number)?.toFixed(2)}
+                                    </p>
+                                    <p className="text-xs font-semibold">
+                                      Total: ${(trade.total_value as number)?.toLocaleString()}
+                                    </p>
+                                  </div>
+                                );
+                              })}
                             </div>
                           )}
                         </div>
