@@ -467,6 +467,10 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                     const pnl = agentPnLPercent[name] || 0;
                     return [`$${value.toLocaleString()} (${pnl >= 0 ? '+' : ''}${pnl.toFixed(1)}%)`, `${name}`];
                   }}
+                  itemSorter={(item: any) => {
+                    // Sort by value descending (highest at top)
+                    return -item.value;
+                  }}
                 />
                 {positions.map((pos, index) => pos.symbol && (
                   <Line
