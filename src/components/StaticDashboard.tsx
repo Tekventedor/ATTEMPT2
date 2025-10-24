@@ -67,6 +67,11 @@ interface SnapshotData {
   orders: Order[];
   spyData: SPYData | null;
   qqqData: QQQData | null;
+  reasoning: Array<{
+    timestamp: string;
+    ticker: string;
+    reasoning: string;
+  }>;
 }
 
 interface StaticDashboardProps {
@@ -81,6 +86,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
   const [portfolioHistory, setPortfolioHistory] = useState<Array<{date: string, value: number, pnl: number, timestamp: number}>>([]);
   const [sp500Data, setSp500Data] = useState<Array<{date: string, spyReturn: number, portfolioReturn: number}>>([]);
   const [nasdaq100Data, setNasdaq100Data] = useState<Array<{date: string, qqqReturn: number, portfolioReturn: number}>>([]);
+  const [expandedLogIds, setExpandedLogIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setMounted(true);
@@ -522,8 +528,41 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
               {tradingLogs.slice(0, 20).map((log) => {
                 const isPending = !log.price || log.price === null;
 
+                // Find matching reasoning by timestamp and ticker
+                const matchingReasoning = data.reasoning?.find((r) => {
+                  if (!log.timestamp || !r.timestamp) return false;
+
+                  const logDate = new Date(log.timestamp as string);
+                  const reasoningDate = new Date(r.timestamp);
+
+                  // Check if ticker matches and timestamps are within 1 hour
+                  const timeDiff = Math.abs(logDate.getTime() - reasoningDate.getTime());
+                  const oneHour = 60 * 60 * 1000;
+
+                  return r.ticker === log.symbol && timeDiff < oneHour;
+                });
+
+                const isExpanded = expandedLogIds.has(log.id as string);
+                const hasReasoning = !!matchingReasoning;
+
                 return (
-                  <div key={log.id as string} className="bg-gray-50 rounded-lg p-2 border border-gray-200 hover:bg-gray-100 transition-colors">
+                  <div
+                    key={log.id as string}
+                    className={`bg-gray-50 rounded-lg p-4 border border-gray-200 hover:bg-gray-100 transition-colors ${hasReasoning ? 'cursor-pointer' : ''}`}
+                    onClick={() => {
+                      if (hasReasoning) {
+                        setExpandedLogIds(prev => {
+                          const newSet = new Set(prev);
+                          if (newSet.has(log.id as string)) {
+                            newSet.delete(log.id as string);
+                          } else {
+                            newSet.add(log.id as string);
+                          }
+                          return newSet;
+                        });
+                      }
+                    }}
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                         {log.action === 'BUY' ? (
@@ -561,6 +600,36 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                         )}
                       </div>
                     </div>
+
+                    {/* Reasoning text */}
+                    {hasReasoning && (
+                      <div className="mt-2 pt-2 border-t border-gray-200">
+                        <p className={`text-xs text-gray-600 leading-relaxed ${
+                          isExpanded ? '' : 'line-clamp-2'
+                        }`}>
+                          {matchingReasoning.reasoning}
+                        </p>
+                        {matchingReasoning.reasoning.length > 100 && (
+                          <button
+                            className="text-xs text-purple-600 hover:text-purple-700 mt-1 font-medium"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedLogIds(prev => {
+                                const newSet = new Set(prev);
+                                if (newSet.has(log.id as string)) {
+                                  newSet.delete(log.id as string);
+                                } else {
+                                  newSet.add(log.id as string);
+                                }
+                                return newSet;
+                              });
+                            }}
+                          >
+                            {isExpanded ? '← Show less' : 'Read more →'}
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}

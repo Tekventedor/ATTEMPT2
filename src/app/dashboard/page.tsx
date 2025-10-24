@@ -58,6 +58,11 @@ interface SnapshotData {
   qqqData: {
     bars: Array<{ t: string; c: number }>;
   } | null;
+  reasoning: Array<{
+    timestamp: string;
+    ticker: string;
+    reasoning: string;
+  }>;
 }
 
 export default function TradingDashboard() {
@@ -136,6 +141,18 @@ export default function TradingDashboard() {
         }
       }
 
+      // Fetch reasoning data from Google Sheet
+      let reasoningData = [];
+      try {
+        const reasoningResponse = await fetch('/api/reasoning');
+        if (reasoningResponse.ok) {
+          reasoningData = await reasoningResponse.json();
+          console.log(`📝 Loaded ${reasoningData.length} reasoning entries`);
+        }
+      } catch (error) {
+        console.error('Error fetching reasoning data:', error);
+      }
+
       // Convert positions to the format expected by StaticDashboard
       const positions = positionsRaw && Array.isArray(positionsRaw)
         ? positionsRaw.map((pos: Record<string, unknown>) => ({
@@ -165,7 +182,8 @@ export default function TradingDashboard() {
         portfolioHistory: historyData || { equity: [], timestamp: [] },
         orders: ordersData || [],
         spyData,
-        qqqData
+        qqqData,
+        reasoning: reasoningData
       };
 
       setSnapshotData(snapshot);
