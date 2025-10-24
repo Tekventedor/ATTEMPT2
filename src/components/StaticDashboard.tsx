@@ -450,7 +450,9 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                 <XAxis dataKey="date" stroke="#6B7280" style={{ fontSize: '12px' }} />
                 <YAxis
                   stroke="#6B7280"
-                  domain={[3000, 15000]}
+                  scale="log"
+                  domain={[1000, 50000]}
+                  ticks={[1000, 2000, 5000, 10000, 20000, 50000]}
                   tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
                   style={{ fontSize: '12px' }}
                 />
