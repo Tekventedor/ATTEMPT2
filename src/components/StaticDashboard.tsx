@@ -562,7 +562,11 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                     return (
                       <div
                         key={reasoning.id}
-                        className="bg-gray-50 rounded-lg p-3 border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                        className={`rounded-lg p-3 border hover:bg-gray-100 transition-all cursor-pointer ${
+                          isExpanded
+                            ? 'bg-white border-gray-300 shadow-lg backdrop-blur-sm'
+                            : 'bg-gray-50 border-gray-200'
+                        }`}
                         onClick={() => {
                           const reasoningId = reasoning.id;
                           const isCurrentlyExpanded = expandedLogIds.has(reasoningId);
