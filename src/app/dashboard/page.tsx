@@ -142,15 +142,19 @@ export default function TradingDashboard() {
       }
 
       // Fetch reasoning data from Google Sheet
+      console.log('🔍 Attempting to fetch reasoning data...');
       let reasoningData = [];
       try {
         const reasoningResponse = await fetch('/api/reasoning');
+        console.log('📡 Reasoning API response status:', reasoningResponse.status);
         if (reasoningResponse.ok) {
           reasoningData = await reasoningResponse.json();
-          console.log(`📝 Loaded ${reasoningData.length} reasoning entries`);
+          console.log(`📝 Loaded ${reasoningData.length} reasoning entries:`, reasoningData);
+        } else {
+          console.error('❌ Reasoning API returned non-OK status:', reasoningResponse.status);
         }
       } catch (error) {
-        console.error('Error fetching reasoning data:', error);
+        console.error('❌ Error fetching reasoning data:', error);
       }
 
       // Convert positions to the format expected by StaticDashboard

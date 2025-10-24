@@ -526,10 +526,11 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
 
             <div className="space-y-1.5 max-h-[500px] overflow-y-auto">
               {(() => {
-                // Separate research entries (tickers like ^SPX) from trade-related reasoning
+                // Separate research entries from trade-related reasoning
+                // Any reasoning entry that doesn't match a trade ticker is considered research
                 const tradeSymbols = new Set(tradingLogs.map(log => log.symbol as string));
                 const researchEntries = (data.reasoning || []).filter(r =>
-                  r.ticker.startsWith('^') || !tradeSymbols.has(r.ticker)
+                  !tradeSymbols.has(r.ticker)
                 );
 
                 // Create combined list of trades and research entries
