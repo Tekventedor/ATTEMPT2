@@ -47,8 +47,7 @@ export async function GET() {
 
       if (parts && parts.length >= 2) {
         let timestamp = parts[0].replace(/^"|"$/g, '').trim();
-        const ticker = parts[1] ? parts[1].replace(/^"|"$/g, '').trim() : 'MARKET_RESEARCH';
-        const reasoning = parts.slice(2).join(',').replace(/^"|"$/g, '').trim();
+        const reasoning = parts.slice(1).join(',').replace(/^"|"$/g, '').trim();
 
         // Normalize timestamp format to ISO
         // Handle DD/MM/YYYY or DD-MM-YYYY formats
@@ -66,9 +65,9 @@ export async function GET() {
           }
         }
 
-        // Allow entries without ticker (market research) or with reasoning
+        // Now only 2 columns: timestamp and reasoning
         if (timestamp && reasoning) {
-          data.push({ timestamp, ticker, reasoning });
+          data.push({ timestamp, ticker: '', reasoning });
         }
       }
     }

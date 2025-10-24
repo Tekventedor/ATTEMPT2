@@ -527,26 +527,16 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
 
             <div className="space-y-1.5 max-h-[500px] overflow-y-auto">
               {(() => {
-                // Separate research entries from trade-related reasoning
-                // Any reasoning entry that doesn't match a trade ticker is considered research
-                const tradeSymbols = new Set(tradingLogs.map(log => log.symbol as string));
+                // All reasoning entries are now standalone logs (no ticker matching)
+                const reasoningLogs = (data.reasoning || []).map((r, idx) => ({
+                  type: 'reasoning' as const,
+                  timestamp: r.timestamp,
+                  data: { ...r, id: `reasoning-${idx}` }
+                }));
 
-                // Group reasoning by ticker and keep only one per ticker for trades
-                const usedReasoningIds = new Set<string>();
-                const researchEntries = (data.reasoning || []).filter((r, idx) => {
-                  const reasoningId = `${r.ticker}-${idx}`;
-                  // Market research entries (empty ticker or doesn't match trades)
-                  if (r.ticker === 'MARKET_RESEARCH' || !tradeSymbols.has(r.ticker)) {
-                    return true; // Show as research log
-                  }
-                  // This reasoning matches a trade ticker, it will be shown with the trade
-                  usedReasoningIds.add(reasoningId);
-                  return false;
-                });
-
-                // Create combined list of trades and research entries
+                // Create combined list of trades and reasoning logs
                 const combinedLogs: Array<{
-                  type: 'trade' | 'research';
+                  type: 'trade' | 'reasoning';
                   timestamp: string;
                   data: any;
                 }> = [
@@ -555,11 +545,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                     timestamp: log.timestamp as string,
                     data: log
                   })),
-                  ...researchEntries.map((r, idx) => ({
-                    type: 'research' as const,
-                    timestamp: r.timestamp,
-                    data: { ...r, id: `research-${idx}` }
-                  }))
+                  ...reasoningLogs
                 ];
 
                 // Sort by timestamp descending (most recent first)
@@ -568,31 +554,48 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                 );
 
                 return combinedLogs.map((item, index) => {
-                  if (item.type === 'research') {
-                    // Research entry display
-                    const research = item.data;
+                  if (item.type === 'reasoning') {
+                    // Reasoning log entry (all reasoning is now standalone)
+                    const reasoning = item.data;
+                    const isExpanded = expandedLogIds.has(reasoning.id);
+
                     return (
                       <div
-                        key={research.id}
-                        className="bg-gray-50 rounded-lg p-3 border border-gray-200"
+                        key={reasoning.id}
+                        className="bg-gray-50 rounded-lg p-3 border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                        onClick={() => {
+                          const reasoningId = reasoning.id;
+                          const isCurrentlyExpanded = expandedLogIds.has(reasoningId);
+
+                          if (isCurrentlyExpanded) {
+                            // Second click: Open modal
+                            setModalReasoning({
+                              text: reasoning.reasoning,
+                              ticker: 'Analysis',
+                              timestamp: reasoning.timestamp
+                            });
+                          } else {
+                            // First click: Expand in place
+                            setExpandedLogIds(prev => {
+                              const newSet = new Set(prev);
+                              newSet.add(reasoningId);
+                              return newSet;
+                            });
+                          }
+                        }}
                       >
-                        <div className="flex items-start space-x-2">
-                          <Activity className="w-3 h-3 text-gray-400 flex-shrink-0 mt-0.5" />
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <span className="text-xs font-semibold text-gray-500 italic">
-                                {research.ticker === 'MARKET_RESEARCH' ? 'Market Research' : `Research: ${research.ticker}`}
-                              </span>
-                              <span className="text-xs text-gray-400">
-                                {new Date(research.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}{' '}
-                                {new Date(research.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                              </span>
-                            </div>
-                            <p className="text-xs text-gray-500 italic leading-relaxed">
-                              {research.reasoning}
-                            </p>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center space-x-2">
+                            <Activity className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                            <span className="text-xs text-gray-400">
+                              {new Date(reasoning.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}{' '}
+                              {new Date(reasoning.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                            </span>
                           </div>
                         </div>
+                        <p className={`text-xs text-gray-900 leading-snug ${isExpanded ? '' : 'line-clamp-1'}`}>
+                          {reasoning.reasoning}
+                        </p>
                       </div>
                     );
                   } else {
@@ -600,49 +603,10 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                     const log = item.data;
                     const isPending = !log.price || log.price === null;
 
-                    // Find matching reasoning by ticker and timestamp (within 1 hour)
-                    const matchingReasoning = (data.reasoning || []).find((r) => {
-                      if (!log.timestamp || !r.timestamp || r.ticker !== log.symbol) return false;
-
-                      const logDate = new Date(log.timestamp as string);
-                      const reasoningDate = new Date(r.timestamp);
-
-                      // Check if timestamps are within 1 hour
-                      const timeDiff = Math.abs(logDate.getTime() - reasoningDate.getTime());
-                      const oneHour = 60 * 60 * 1000;
-
-                      return timeDiff < oneHour;
-                    });
-
-                    const isExpanded = expandedLogIds.has(log.id as string);
-                    const hasReasoning = !!matchingReasoning;
-
                     return (
                       <div
                         key={log.id as string}
-                        className={`bg-gray-50 rounded-lg p-3 border border-gray-200 hover:bg-gray-100 transition-colors ${hasReasoning ? 'cursor-pointer' : ''}`}
-                        onClick={() => {
-                          if (hasReasoning) {
-                            const logId = log.id as string;
-                            const isCurrentlyExpanded = expandedLogIds.has(logId);
-
-                            if (isCurrentlyExpanded) {
-                              // Second click: Open modal
-                              setModalReasoning({
-                                text: matchingReasoning.reasoning,
-                                ticker: log.symbol as string,
-                                timestamp: log.timestamp as string
-                              });
-                            } else {
-                              // First click: Expand in place
-                              setExpandedLogIds(prev => {
-                                const newSet = new Set(prev);
-                                newSet.add(logId);
-                                return newSet;
-                              });
-                            }
-                          }
-                        }}
+                        className="bg-gray-50 rounded-lg p-3 border border-gray-200"
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-2">
@@ -687,17 +651,6 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                             )}
                           </div>
                         </div>
-
-                        {/* Reasoning text */}
-                        {hasReasoning && (
-                          <div className="mt-1">
-                            <p className={`text-xs text-gray-500 leading-snug ${
-                              isExpanded ? '' : 'line-clamp-1'
-                            }`}>
-                              {matchingReasoning.reasoning}
-                            </p>
-                          </div>
-                        )}
                       </div>
                     );
                   }
