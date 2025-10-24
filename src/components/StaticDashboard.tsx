@@ -479,20 +479,20 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                 ))}
               </LineChart>
             </ResponsiveContainer>
-            {/* Agent P&L Callouts */}
+            {/* Agent P&L Callouts - Display in original color assignment order */}
             <div className="mt-4 grid grid-cols-3 gap-x-4 gap-y-2">
-              {positions.slice(0, 9)
-                .sort((a, b) => {
-                  const colorIndexA = positions.findIndex(p => p.symbol === a.symbol);
-                  const colorIndexB = positions.findIndex(p => p.symbol === b.symbol);
-                  return colorIndexA - colorIndexB;
-                })
-                .map((pos, index) => pos.symbol && (
+              {positions.slice(0, 9).map((pos, originalIndex) => {
+                if (!pos.symbol) return null;
+
+                // Use the original index to get the consistent color
+                const colorIndex = originalIndex % COLORS.length;
+
+                return (
                   <div key={pos.symbol} className="flex items-center justify-between text-sm">
                     <div className="flex items-center space-x-2">
                       <div
                         className="w-3.5 h-3.5 rounded-full"
-                        style={{ backgroundColor: AGENT_COLORS[pos.symbol] || COLORS[positions.findIndex(p => p.symbol === pos.symbol) % COLORS.length] }}
+                        style={{ backgroundColor: COLORS[colorIndex] }}
                       ></div>
                       <span className="text-gray-700 font-medium">{pos.symbol}</span>
                     </div>
@@ -500,7 +500,8 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                       {(agentPnLPercent[pos.symbol] || 0) >= 0 ? '+' : ''}{(agentPnLPercent[pos.symbol] || 0).toFixed(1)}%
                     </span>
                   </div>
-                ))}
+                );
+              })}
             </div>
           </div>
 
