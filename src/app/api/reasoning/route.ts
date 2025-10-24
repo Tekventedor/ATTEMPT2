@@ -45,28 +45,29 @@ export async function GET() {
       // Split by comma, but handle commas within quoted fields
       const parts = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g);
 
-      if (parts && parts.length >= 3) {
+      if (parts && parts.length >= 2) {
         let timestamp = parts[0].replace(/^"|"$/g, '').trim();
-        const ticker = parts[1].replace(/^"|"$/g, '').trim();
+        const ticker = parts[1] ? parts[1].replace(/^"|"$/g, '').trim() : 'MARKET_RESEARCH';
         const reasoning = parts.slice(2).join(',').replace(/^"|"$/g, '').trim();
 
         // Normalize timestamp format to ISO
         // Handle DD/MM/YYYY or DD-MM-YYYY formats
         if (timestamp.includes('/') || (timestamp.includes('-') && timestamp.split('-')[0].length <= 2)) {
-          const parts = timestamp.split(/[\s\/\-:]+/);
-          if (parts.length >= 5) {
+          const dateParts = timestamp.split(/[\s\/\-:]+/);
+          if (dateParts.length >= 5) {
             // parts: [DD, MM, YYYY, HH, MM, SS?]
-            const day = parts[0];
-            const month = parts[1];
-            const year = parts[2];
-            const hour = parts[3];
-            const minute = parts[4];
-            const second = parts[5] || '00';
+            const day = dateParts[0];
+            const month = dateParts[1];
+            const year = dateParts[2];
+            const hour = dateParts[3];
+            const minute = dateParts[4];
+            const second = dateParts[5] || '00';
             timestamp = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')} ${hour.padStart(2, '0')}:${minute.padStart(2, '0')}:${second.padStart(2, '0')}`;
           }
         }
 
-        if (timestamp && ticker && reasoning) {
+        // Allow entries without ticker (market research) or with reasoning
+        if (timestamp && reasoning) {
           data.push({ timestamp, ticker, reasoning });
         }
       }

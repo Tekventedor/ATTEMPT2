@@ -535,12 +535,13 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                 const usedReasoningIds = new Set<string>();
                 const researchEntries = (data.reasoning || []).filter((r, idx) => {
                   const reasoningId = `${r.ticker}-${idx}`;
-                  if (tradeSymbols.has(r.ticker)) {
-                    // This reasoning matches a trade ticker, it will be shown with the trade
-                    usedReasoningIds.add(reasoningId);
-                    return false;
+                  // Market research entries (empty ticker or doesn't match trades)
+                  if (r.ticker === 'MARKET_RESEARCH' || !tradeSymbols.has(r.ticker)) {
+                    return true; // Show as research log
                   }
-                  return true; // Show as research log
+                  // This reasoning matches a trade ticker, it will be shown with the trade
+                  usedReasoningIds.add(reasoningId);
+                  return false;
                 });
 
                 // Create combined list of trades and research entries
@@ -580,7 +581,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                           <div className="flex-1">
                             <div className="flex items-center space-x-2 mb-2">
                               <span className="text-xs font-semibold text-gray-500 italic">
-                                Research: {research.ticker}
+                                {research.ticker === 'MARKET_RESEARCH' ? 'Market Research' : `Research: ${research.ticker}`}
                               </span>
                               <span className="text-xs text-gray-400">
                                 {new Date(research.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}{' '}
