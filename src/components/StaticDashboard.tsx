@@ -529,9 +529,18 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                 // Separate research entries from trade-related reasoning
                 // Any reasoning entry that doesn't match a trade ticker is considered research
                 const tradeSymbols = new Set(tradingLogs.map(log => log.symbol as string));
-                const researchEntries = (data.reasoning || []).filter(r =>
-                  !tradeSymbols.has(r.ticker)
-                );
+
+                // Group reasoning by ticker and keep only one per ticker for trades
+                const usedReasoningIds = new Set<string>();
+                const researchEntries = (data.reasoning || []).filter((r, idx) => {
+                  const reasoningId = `${r.ticker}-${idx}`;
+                  if (tradeSymbols.has(r.ticker)) {
+                    // This reasoning matches a trade ticker, it will be shown with the trade
+                    usedReasoningIds.add(reasoningId);
+                    return false;
+                  }
+                  return true; // Show as research log
+                });
 
                 // Create combined list of trades and research entries
                 const combinedLogs: Array<{
@@ -588,19 +597,19 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                     const log = item.data;
                     const isPending = !log.price || log.price === null;
 
-                    // Find matching reasoning by timestamp and ticker
-                    const matchingReasoning = data.reasoning?.find((r) => {
-                      if (!log.timestamp || !r.timestamp) return false;
+                    // Find matching reasoning by ticker (closest timestamp)
+                    const tickerReasonings = (data.reasoning || []).filter(r => r.ticker === log.symbol);
+                    const matchingReasoning = tickerReasonings.length > 0
+                      ? tickerReasonings.reduce((closest, current) => {
+                          if (!log.timestamp) return current;
 
-                      const logDate = new Date(log.timestamp as string);
-                      const reasoningDate = new Date(r.timestamp);
+                          const logDate = new Date(log.timestamp as string).getTime();
+                          const closestDiff = Math.abs(new Date(closest.timestamp).getTime() - logDate);
+                          const currentDiff = Math.abs(new Date(current.timestamp).getTime() - logDate);
 
-                      // Check if ticker matches and timestamps are within 1 hour
-                      const timeDiff = Math.abs(logDate.getTime() - reasoningDate.getTime());
-                      const oneHour = 60 * 60 * 1000;
-
-                      return r.ticker === log.symbol && timeDiff < oneHour;
-                    });
+                          return currentDiff < closestDiff ? current : closest;
+                        })
+                      : null;
 
                     const isExpanded = expandedLogIds.has(log.id as string);
                     const hasReasoning = !!matchingReasoning;
