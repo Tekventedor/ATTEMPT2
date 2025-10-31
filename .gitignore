@@ -35,6 +35,10 @@ yarn-error.log*
 
 # vercel
 .vercel
+.vercel-build
+
+# backup folder
+.backup/
 
 # typescript
 *.tsbuildinfo

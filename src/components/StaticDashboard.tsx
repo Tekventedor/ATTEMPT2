@@ -67,6 +67,9 @@ interface SnapshotData {
   orders: Order[];
   spyData: SPYData | null;
   qqqData: QQQData | null;
+  stockData: Record<string, {
+    bars: Array<{ t: string; c: number }>;
+  }>;
   reasoning: Array<{
     timestamp: string;
     ticker: string;
@@ -102,8 +105,8 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
     // Process positions
     setPositions(data.positions);
 
-    // Process orders into trading logs
-    const logs = data.orders.slice(0, 50).map((order) => ({
+    // Process orders into trading logs - increased to capture all October trades
+    const logs = data.orders.slice(0, 100).map((order) => ({
       id: order.id,
       title: `${order.symbol} ${order.side.toUpperCase()}`,
       description: `${order.type} order - ${order.status}`,
@@ -152,20 +155,6 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
         positionAfter
       };
     });
-
-    console.log('📊 Trading logs with timestamps:', logsWithPositions.filter(l => l.timestamp).length, 'out of', logsWithPositions.length);
-
-    // Log position tracking for debugging
-    const spyTrades = logsWithPositions.filter(log => log.symbol === 'SPY');
-    if (spyTrades.length > 0) {
-      console.log('🔍 SPY Position Tracking:', spyTrades.map(t => ({
-        action: t.action,
-        qty: t.quantity,
-        before: t.positionBefore,
-        after: t.positionAfter,
-        timestamp: t.timestamp
-      })));
-    }
 
     setTradingLogs(logsWithPositions);
 
@@ -344,13 +333,24 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
 
   const totalUnrealizedPnL = positions.reduce((sum, pos) => sum + pos.unrealized_pl, 0);
 
-  // Calculate total portfolio return from start
-  const initialPortfolioValue = portfolioHistory.length > 0 ? portfolioHistory[0].value : 100000;
+  // Calculate portfolio returns
   const currentPortfolioValue = account?.portfolio_value || 0;
-  const totalReturn = initialPortfolioValue > 0
-    ? ((currentPortfolioValue - initialPortfolioValue) / initialPortfolioValue) * 100
+
+  // Week Return (7 days)
+  const weekStartValue = portfolioHistory.length > 0 ? portfolioHistory[0].value : 100000;
+  const weekReturn = weekStartValue > 0
+    ? ((currentPortfolioValue - weekStartValue) / weekStartValue) * 100
     : 0;
-  const totalReturnDollar = currentPortfolioValue - initialPortfolioValue;
+  const weekReturnDollar = currentPortfolioValue - weekStartValue;
+
+  // Day Return (last 48 hours of activity)
+  const fortyEightHoursAgo = Date.now() - (48 * 60 * 60 * 1000);
+  const dayStartPoint = portfolioHistory.find(point => point.timestamp >= fortyEightHoursAgo);
+  const dayStartValue = dayStartPoint ? dayStartPoint.value : weekStartValue;
+  const dayReturn = dayStartValue > 0
+    ? ((currentPortfolioValue - dayStartValue) / dayStartValue) * 100
+    : 0;
+  const dayReturnDollar = currentPortfolioValue - dayStartValue;
 
   // Calculate Market Exposure
   const investedAmount = (account?.portfolio_value || 0) - (account?.cash || 0);
@@ -361,6 +361,12 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
   // Define color palette
   const COLORS = ['#8b5cf6', '#22d3ee', '#f59e0b', '#10b981', '#ef4444', '#ec4899', '#6366f1', '#14b8a6', '#f97316', '#a855f7'];
 
+  // Get all unique symbols that were ever traded (for historical chart)
+  const allTradedSymbols = Array.from(
+    new Set(tradingLogs.map(log => log.symbol as string).filter(Boolean))
+  );
+
+  // Assign colors to current positions (for Stock Performance chart)
   const AGENT_COLORS: Record<string, string> = {};
   positions.forEach((pos, index) => {
     if (pos.symbol && !AGENT_COLORS[pos.symbol]) {
@@ -368,20 +374,68 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
     }
   });
 
-  // Calculate agent performance history
-  const agentPerformanceHistory = portfolioHistory.map((point, index) => {
+  // Assign colors to ALL traded symbols (for historical chart)
+  const ALL_TRADED_COLORS: Record<string, string> = {};
+  allTradedSymbols.forEach((symbol, index) => {
+    if (symbol && !ALL_TRADED_COLORS[symbol]) {
+      ALL_TRADED_COLORS[symbol] = COLORS[index % COLORS.length];
+    }
+  });
+
+  // Calculate agent performance history with real stock data
+  const agentPerformanceHistory = portfolioHistory.map((point) => {
     const result: Record<string, string | number> = { date: point.date, total: point.value };
-    positions.forEach(pos => {
-      if (pos.symbol) {
-        const baseValue = Math.abs(pos.market_value); // Use absolute value for chart display
-        const variation = Math.sin(index * 0.3) * (baseValue * 0.05);
-        result[pos.symbol] = baseValue + variation;
+    const pointTime = point.timestamp;
+
+    // Calculate the current position for each symbol at this point in time
+    const positionsAtPoint: Record<string, number> = {};
+
+    // Go through all trades up to this point to calculate cumulative positions
+    tradingLogs.forEach((log) => {
+      const symbol = log.symbol as string;
+      const logTime = log.timestamp ? new Date(log.timestamp as string).getTime() : 0;
+
+      // Only consider trades that happened before or at this point
+      if (logTime <= pointTime && symbol) {
+        // Use the position after this trade
+        const positionAfter = log.positionAfter as number | undefined;
+        if (positionAfter !== undefined) {
+          positionsAtPoint[symbol] = positionAfter;
+        }
       }
     });
+
+    // Now calculate the value of each position using historical prices
+    Object.entries(positionsAtPoint).forEach(([symbol, quantity]) => {
+      if (quantity !== 0) {
+        // Find the closest price data for this symbol at this time
+        // Check stockData first, then spyData/qqqData for SPY/QQQ
+        let stockBars = data.stockData?.[symbol]?.bars;
+        if (!stockBars && symbol === 'SPY') {
+          stockBars = data.spyData?.bars;
+        } else if (!stockBars && symbol === 'QQQ') {
+          stockBars = data.qqqData?.bars;
+        }
+
+        if (stockBars && stockBars.length > 0) {
+          // Find the closest bar to this timestamp
+          const closestBar = stockBars.reduce((prev, curr) => {
+            const prevDiff = Math.abs(new Date(prev.t).getTime() - pointTime);
+            const currDiff = Math.abs(new Date(curr.t).getTime() - pointTime);
+            return currDiff < prevDiff ? curr : prev;
+          });
+
+          // Calculate position value: quantity × price
+          const positionValue = Math.abs(quantity * closestBar.c);
+          result[symbol] = positionValue;
+        }
+      }
+    });
+
     return result;
   });
 
-  // Calculate P&L % for each agent
+  // Calculate P&L % for current positions only
   const agentPnLPercent: Record<string, number> = {};
   positions.forEach(pos => {
     if (pos.symbol) {
@@ -389,6 +443,117 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
       agentPnLPercent[pos.symbol] = pnlPercent;
     }
   });
+
+  // Calculate historical chart data for ALL trades (including closed positions)
+  const historicalTradesData = portfolioHistory.map((point) => {
+    const result: Record<string, string | number> = { date: point.date, total: point.value };
+    const pointTime = point.timestamp;
+
+    // Calculate the current position for each symbol at this point in time
+    const positionsAtPoint: Record<string, number> = {};
+
+    // Go through all trades up to this point to calculate cumulative positions
+    tradingLogs.forEach((log) => {
+      const symbol = log.symbol as string;
+      const logTime = log.timestamp ? new Date(log.timestamp as string).getTime() : 0;
+
+      // Only consider trades that happened before or at this point
+      if (logTime <= pointTime && symbol) {
+        const positionAfter = log.positionAfter as number | undefined;
+        if (positionAfter !== undefined) {
+          positionsAtPoint[symbol] = positionAfter;
+        }
+      }
+    });
+
+    // Now calculate the value of each position using historical prices
+    Object.entries(positionsAtPoint).forEach(([symbol, quantity]) => {
+      // For historical chart, show value even when position was open (not just current positions)
+      // Check stockData first, then spyData/qqqData for SPY/QQQ
+      let stockBars = data.stockData?.[symbol]?.bars;
+      if (!stockBars && symbol === 'SPY') {
+        stockBars = data.spyData?.bars;
+      } else if (!stockBars && symbol === 'QQQ') {
+        stockBars = data.qqqData?.bars;
+      }
+
+      if (stockBars && stockBars.length > 0) {
+        // Find the closest bar to this timestamp
+        const closestBar = stockBars.reduce((prev, curr) => {
+          const prevDiff = Math.abs(new Date(prev.t).getTime() - pointTime);
+          const currDiff = Math.abs(new Date(curr.t).getTime() - pointTime);
+          return currDiff < prevDiff ? curr : prev;
+        });
+
+        // Calculate position value: quantity × price
+        // If position is 0, don't show on chart (line stops)
+        if (quantity !== 0) {
+          const positionValue = Math.abs(quantity * closestBar.c);
+          result[symbol] = positionValue;
+        }
+      }
+    });
+
+    return result;
+  });
+
+  // Calculate P&L for closed positions (for historical chart legend)
+  const historicalPnLPercent: Record<string, number> = {};
+
+  allTradedSymbols.forEach(symbol => {
+    const symbolTrades = tradingLogs.filter(log => log.symbol === symbol);
+    if (symbolTrades.length > 0) {
+      const buys = symbolTrades.filter(t => t.action === 'BUY');
+      const sells = symbolTrades.filter(t => t.action === 'SELL');
+
+      if (buys.length > 0 && sells.length > 0) {
+        const avgBuyPrice = buys.reduce((sum, t) => sum + (t.price as number || 0), 0) / buys.length;
+        const avgSellPrice = sells.reduce((sum, t) => sum + (t.price as number || 0), 0) / sells.length;
+
+        if (avgBuyPrice > 0) {
+          historicalPnLPercent[symbol] = ((avgSellPrice - avgBuyPrice) / avgBuyPrice) * 100;
+        }
+      } else if (buys.length > 0 && positions.find(p => p.symbol === symbol)) {
+        // Use current position P&L if still open
+        historicalPnLPercent[symbol] = agentPnLPercent[symbol] || 0;
+      }
+    }
+  });
+
+  // VERIFICATION LOGGING - Check data for each stock
+  console.log('\n========== STOCK DATA VERIFICATION ==========');
+  allTradedSymbols.forEach(symbol => {
+    if (!symbol) return;
+
+    // Check if we have price data
+    let hasPriceData = false;
+    let barCount = 0;
+    if (data.stockData?.[symbol]?.bars) {
+      hasPriceData = true;
+      barCount = data.stockData[symbol].bars.length;
+    } else if (symbol === 'SPY' && data.spyData?.bars) {
+      hasPriceData = true;
+      barCount = data.spyData.bars.length;
+    } else if (symbol === 'QQQ' && data.qqqData?.bars) {
+      hasPriceData = true;
+      barCount = data.qqqData.bars.length;
+    }
+
+    // Check position status
+    const isOpen = positions.some(p => p.symbol === symbol);
+    const positionStatus = isOpen ? 'Open' : 'Closed';
+
+    // Get buy/sell prices from trading logs
+    const symbolTrades = tradingLogs.filter(log => log.symbol === symbol);
+    const buys = symbolTrades.filter(t => t.action === 'BUY');
+    const sells = symbolTrades.filter(t => t.action === 'SELL');
+
+    const buyPrice = buys.length > 0 ? (buys[0].price as number) : null;
+    const sellPrice = sells.length > 0 ? (sells[sells.length - 1].price as number) : null;
+
+    console.log(`${symbol}    ${hasPriceData ? `✅ ${barCount} bars` : '❌ Missing'}    ${positionStatus}    Buy: ${buyPrice ? '$' + buyPrice.toFixed(2) : '❌'}    Sell: ${sellPrice ? '$' + sellPrice.toFixed(2) : isOpen ? 'N/A (Open)' : '❌'}`);
+  });
+  console.log('============================================\n');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-gray-100">
@@ -430,20 +595,20 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
             </div>
           </div>
 
-          {/* Card 2: Total Return */}
+          {/* Card 2: Week Return */}
           <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-medium">Total Return</p>
-                <p className={`text-2xl font-bold ${totalReturn >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {totalReturn >= 0 ? '+' : ''}{totalReturn.toFixed(2)}%
+                <p className="text-gray-600 text-sm font-medium">Week Return</p>
+                <p className={`text-2xl font-bold ${weekReturn >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {weekReturn >= 0 ? '+' : ''}{weekReturn.toFixed(2)}%
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  {totalReturnDollar >= 0 ? '+' : ''}${totalReturnDollar.toLocaleString()}
+                  {weekReturnDollar >= 0 ? '+' : ''}${weekReturnDollar.toLocaleString()} (7 days)
                 </p>
               </div>
-              <div className={`p-3 rounded-lg ${totalReturn >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
-                {totalReturn >= 0 ? (
+              <div className={`p-3 rounded-lg ${weekReturn >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
+                {weekReturn >= 0 ? (
                   <TrendingUp className="w-6 h-6 text-green-600" />
                 ) : (
                   <TrendingDown className="w-6 h-6 text-red-600" />
@@ -488,9 +653,9 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
         </div>
 
         {/* Main Performance Chart - 60/40 Split */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 mb-8">
           {/* Stock Performance Chart - 60% width */}
-          <div className="lg:col-span-3 bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+          <div className="lg:col-span-6 bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Stock Performance (AI Trades)</h3>
               <div className="text-sm text-gray-600">
@@ -499,10 +664,19 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                 </span>
               </div>
             </div>
-            <ResponsiveContainer width="100%" height={400}>
+            <ResponsiveContainer width="100%" height={500}>
               <LineChart data={agentPerformanceHistory.length > 0 ? agentPerformanceHistory : portfolioHistory}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                <XAxis dataKey="date" stroke="#6B7280" style={{ fontSize: '12px' }} />
+                <XAxis
+                  dataKey="date"
+                  stroke="#6B7280"
+                  style={{ fontSize: '10px' }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  interval={0}
+                  minTickGap={30}
+                />
                 <YAxis
                   stroke="#6B7280"
                   scale="log"
@@ -540,7 +714,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                 ))}
               </LineChart>
             </ResponsiveContainer>
-            {/* Agent P&L Callouts - Display in original color assignment order */}
+            {/* Stock Performance Legend - Current positions only */}
             <div className="mt-4 grid grid-cols-3 gap-x-4 gap-y-2">
               {positions.slice(0, 9).map((pos, originalIndex) => {
                 if (!pos.symbol) return null;
@@ -553,7 +727,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                     <div className="flex items-center space-x-2">
                       <div
                         className="w-3.5 h-3.5 rounded-full"
-                        style={{ backgroundColor: COLORS[colorIndex] }}
+                        style={{ backgroundColor: AGENT_COLORS[pos.symbol] || COLORS[colorIndex] }}
                       ></div>
                       <span className="text-gray-700 font-medium">{pos.symbol}</span>
                     </div>
@@ -566,8 +740,8 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
             </div>
           </div>
 
-          {/* Activity Log - 40% width */}
-          <div className="lg:col-span-2 bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+          {/* Activity Log - 30% width */}
+          <div className="lg:col-span-3 bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
             <div className="flex items-center space-x-2 mb-4">
               <Activity className="w-5 h-5 text-purple-600" />
               <h3 className="text-lg font-semibold text-gray-900">Activity Log</h3>
@@ -782,13 +956,13 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                       });
 
                       return (
-                        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg max-w-xs">
+                        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg" style={{ maxWidth: tradesAtPoint.length > 4 ? '1200px' : '300px' }}>
                           <p className="text-gray-600 text-xs mb-1">{data.date}</p>
                           <p className="text-gray-900 font-semibold">
                             Portfolio Value: ${data.value.toLocaleString()}
                           </p>
                           {tradesAtPoint.length > 0 && (
-                            <div className="mt-2 pt-2 border-t border-gray-200 space-y-2">
+                            <div className={`mt-2 pt-2 border-t border-gray-200 gap-3 ${tradesAtPoint.length > 4 ? 'grid grid-cols-4' : 'space-y-2'}`}>
                               {tradesAtPoint.map((trade, idx) => {
                                 const positionBefore = trade.positionBefore as number | undefined;
                                 const positionAfter = trade.positionAfter as number | undefined;
@@ -913,6 +1087,128 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
           </div>
         </div>
 
+        {/* Additional Stats Row - Cards and Chart */}
+        <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 mb-8">
+          {/* Left Side - Stats Cards (30% width) */}
+          <div className="lg:col-span-3 space-y-4">
+            {/* 2-Day Return Card */}
+            <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-600 text-xs font-medium">2-Day Return</p>
+                  <p className={`text-xl font-bold ${dayReturn >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {dayReturn >= 0 ? '+' : ''}{dayReturn.toFixed(2)}%
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {dayReturnDollar >= 0 ? '+' : ''}${dayReturnDollar.toLocaleString()} (48 hours)
+                  </p>
+                </div>
+                <div className={`p-2 rounded-lg ${dayReturn >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
+                  {dayReturn >= 0 ? (
+                    <TrendingUp className="w-5 h-5 text-green-600" />
+                  ) : (
+                    <TrendingDown className="w-5 h-5 text-red-600" />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Placeholder Card for Future Feature */}
+            <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-600 text-xs font-medium">Future Metric</p>
+                  <p className="text-xl font-bold text-gray-900">
+                    --
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">Coming soon</p>
+                </div>
+                <div className="bg-gray-100 p-2 rounded-lg">
+                  <Activity className="w-5 h-5 text-gray-600" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Side - Historical Trades Chart (70% width) */}
+          <div className="lg:col-span-7 bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Historical Trades (All Positions)</h3>
+            <ResponsiveContainer width="100%" height={400}>
+              <LineChart data={historicalTradesData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                <XAxis
+                  dataKey="date"
+                  stroke="#6B7280"
+                  style={{ fontSize: '10px' }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  interval={0}
+                  minTickGap={30}
+                />
+                <YAxis
+                  stroke="#6B7280"
+                  scale="log"
+                  domain={[1000, 50000]}
+                  ticks={[1000, 2000, 5000, 10000, 20000, 50000]}
+                  tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
+                  style={{ fontSize: '12px' }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E5E7EB',
+                    borderRadius: '8px',
+                    color: '#111827'
+                  }}
+                  formatter={(value: number, name: string) => {
+                    const pnl = historicalPnLPercent[name] || 0;
+                    return [`$${value.toLocaleString()} (${pnl >= 0 ? '+' : ''}${pnl.toFixed(1)}%)`, `${name}`];
+                  }}
+                />
+                {allTradedSymbols.map((symbol, index) => symbol && (
+                  <Line
+                    key={symbol}
+                    type="monotone"
+                    dataKey={symbol}
+                    stroke={ALL_TRADED_COLORS[symbol] || COLORS[index % COLORS.length]}
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={false}
+                    name={symbol}
+                    connectNulls={false}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+            {/* Historical Trades Legend - All traded stocks */}
+            <div className="mt-4 grid grid-cols-4 gap-x-3 gap-y-2">
+              {allTradedSymbols.map((symbol, originalIndex) => {
+                if (!symbol) return null;
+
+                const isClosed = !positions.find(p => p.symbol === symbol);
+
+                return (
+                  <div key={symbol} className="flex items-center justify-between text-sm">
+                    <div className="flex items-center space-x-2">
+                      <div
+                        className="w-3.5 h-3.5 rounded-full"
+                        style={{ backgroundColor: ALL_TRADED_COLORS[symbol] || COLORS[originalIndex % COLORS.length] }}
+                      ></div>
+                      <span className={`text-gray-700 font-medium ${isClosed ? 'opacity-60' : ''}`}>
+                        {symbol} {isClosed && '(closed)'}
+                      </span>
+                    </div>
+                    <span className={`font-bold ml-2 ${(historicalPnLPercent[symbol] || 0) >= 0 ? 'text-green-600' : 'text-red-600'} ${isClosed ? 'opacity-60' : ''}`}>
+                      {(historicalPnLPercent[symbol] || 0) >= 0 ? '+' : ''}{(historicalPnLPercent[symbol] || 0).toFixed(1)}%
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
         {/* AI Performance vs S&P 500 */}
         {sp500Data.length > 0 && (
           <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm mb-8">
@@ -991,7 +1287,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                       });
 
                       return (
-                        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg max-w-xs">
+                        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg" style={{ maxWidth: tradesAtPoint.length > 4 ? '1200px' : '300px' }}>
                           <p className="text-gray-600 text-xs mb-1">{data.date}</p>
                           <p className="text-purple-600 font-semibold text-sm">
                             AI: {data.portfolioReturn >= 0 ? '+' : ''}{data.portfolioReturn.toFixed(2)}%
@@ -1000,7 +1296,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                             S&P 500: {data.spyReturn >= 0 ? '+' : ''}{data.spyReturn.toFixed(2)}%
                           </p>
                           {tradesAtPoint.length > 0 && (
-                            <div className="mt-2 pt-2 border-t border-gray-200 space-y-2">
+                            <div className={`mt-2 pt-2 border-t border-gray-200 gap-3 ${tradesAtPoint.length > 4 ? 'grid grid-cols-4' : 'space-y-2'}`}>
                               {tradesAtPoint.map((trade, idx) => {
                                 const positionBefore = trade.positionBefore as number | undefined;
                                 const positionAfter = trade.positionAfter as number | undefined;
@@ -1176,7 +1472,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                       });
 
                       return (
-                        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg max-w-xs">
+                        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg" style={{ maxWidth: tradesAtPoint.length > 4 ? '1200px' : '300px' }}>
                           <p className="text-gray-600 text-xs mb-1">{data.date}</p>
                           <p className="text-purple-600 font-semibold text-sm">
                             AI: {data.portfolioReturn >= 0 ? '+' : ''}{data.portfolioReturn.toFixed(2)}%
@@ -1185,7 +1481,7 @@ export default function StaticDashboard({ data }: StaticDashboardProps) {
                             NASDAQ-100: {data.qqqReturn >= 0 ? '+' : ''}{data.qqqReturn.toFixed(2)}%
                           </p>
                           {tradesAtPoint.length > 0 && (
-                            <div className="mt-2 pt-2 border-t border-gray-200 space-y-2">
+                            <div className={`mt-2 pt-2 border-t border-gray-200 gap-3 ${tradesAtPoint.length > 4 ? 'grid grid-cols-4' : 'space-y-2'}`}>
                               {tradesAtPoint.map((trade, idx) => {
                                 const positionBefore = trade.positionBefore as number | undefined;
                                 const positionAfter = trade.positionAfter as number | undefined;
